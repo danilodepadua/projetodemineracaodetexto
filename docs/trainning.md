@@ -25,6 +25,18 @@ The available models are `ridge` and `linear_svr`. If `--model` is omitted, trai
 .venv/bin/python src/train.py --data-dir data --model linear_svr --output-dir artifacts/models
 ```
 
+Use `--alpha` to set Ridge regularization. LinearSVR exposes its constructor hyperparameters through `--epsilon`, `--tol`, `--c`, `--loss`, `--fit-intercept` `--no-fit-intercept`, `--intercept-scaling`, `--dual`, `--verbose`, `--random-state`, and `--max-iter`. For example:
+
+```bash
+.venv/bin/python src/train.py \
+	--data-dir data \
+	--model linear_svr \
+	--c 0.5 \
+	--epsilon 0.1 \
+	--loss squared_epsilon_insensitive \
+	--max-iter 20000
+```
+
 Training stops with an error when an input file is missing, a CSV and matrix have different row counts, a target column is missing, or the model name is unsupported.
 
 ## Follow up with evaluation
