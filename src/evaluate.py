@@ -10,8 +10,12 @@ import pandas as pd
 from scipy import sparse
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 
-from model_config import DEFAULT_CONFIG_PATH, get_model_config, load_config
-from settings import SETTINGS
+if __package__:
+    from .model_config import DEFAULT_CONFIG_PATH, get_model_config, load_config
+    from .settings import SETTINGS
+else:
+    from model_config import DEFAULT_CONFIG_PATH, get_model_config, load_config
+    from settings import SETTINGS
 
 
 def load_validation_data(data_dir: Path, targets: list[str]):
