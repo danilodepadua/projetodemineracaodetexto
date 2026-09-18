@@ -16,19 +16,19 @@ The training and validation CSV files must contain the target columns `formal_re
 Run the default search from the repository root:
 
 ```bash
-.venv/bin/python src/tune.py
+python src/tune.py
 ```
 
 The script reads from `data` when `--data-dir` is omitted. To use another data directory, pass it explicitly:
 
 ```bash
-.venv/bin/python src/tune.py --data-dir /path/to/data
+python src/tune.py --data-dir /path/to/data
 ```
 
 Each tunable parameter in [config/models.yaml](../config/models.yaml) has one entry with a `default` value for normal training and a `values` list for tuning. The current file tests `alpha` = `0.01`, `0.1`, `1.0`, `10.0`, and `100.0` for Ridge, and `C` = `0.01`, `0.1`, `1.0`, `10.0`, and `100.0` for LinearSVR. Use `--config` to tune another configuration:
 
 ```bash
-.venv/bin/python src/tune.py --config config/models.yaml
+python src/tune.py --config config/models.yaml
 ```
 
 ## Results
@@ -36,7 +36,7 @@ Each tunable parameter in [config/models.yaml](../config/models.yaml) has one en
 Predictions are clipped to the 1–5 label range before calculating RMSE and MAE. The script prints the best result for each target, choosing the experiment with the lowest RMSE, and writes the complete results to `artifacts/evaluation/tuning.json` by default. Use `--output` to choose another JSON path:
 
 ```bash
-.venv/bin/python src/tune.py --output /tmp/tuning.json
+python src/tune.py --output /tmp/tuning.json
 ```
 
 The JSON contains every experiment under `ridge` and `linear_svr`, plus the selected result for each target under `best`. Tuning does not save trained models; update the selected `default` value in the YAML `params` mapping and run [train.py](../src/train.py) to create model artifacts.

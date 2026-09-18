@@ -16,19 +16,19 @@ The CSV files must contain the four target columns used by the scripts: `formal_
 Use the default Ridge model with the repository's `data/` directory:
 
 ```bash
-.venv/bin/python src/train.py --model ridge
+python src/train.py --model ridge
 ```
 
 The available models are `ridge` and `linear_svr`. If `--model` is omitted, training uses `ridge`. If `--data-dir` is omitted, the script reads from `data` relative to the repository root. By default, each model is saved under `artifacts/models/<model>/` as one `.joblib` file per target. To choose another data or output location, pass `--data-dir` or `--output-dir`:
 
 ```bash
-.venv/bin/python src/train.py --data-dir /path/to/data --model linear_svr --output-dir /path/to/models
+python src/train.py --data-dir /path/to/data --model linear_svr --output-dir /path/to/models
 ```
 
 Model parameters are defined in [config/models.yaml](../config/models.yaml). Edit the `default` value in the selected model's `params` mapping, or pass another YAML file with `--config`:
 
 ```bash
-.venv/bin/python src/train.py \
+python src/train.py \
   --config config/models.yaml \
   --model linear_svr
 ```

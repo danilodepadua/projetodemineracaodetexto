@@ -23,7 +23,7 @@ Train the models with [train.py](../src/train.py) or follow [trainning.md](train
 Evaluate the Ridge models against `data/` with:
 
 ```bash
-.venv/bin/python src/evaluate.py --model ridge
+python src/evaluate.py --model ridge
 ```
 
 The model name must be defined in the YAML configuration and must match the name used during training. If `--config` is omitted, the evaluator reads `config/models.yaml`.
@@ -31,7 +31,7 @@ The model name must be defined in the YAML configuration and must match the name
 For non-default locations, pass the parent directory containing the model-specific folder and the directory for the metrics file:
 
 ```bash
-.venv/bin/python src/evaluate.py \
+python src/evaluate.py \
   --config config/models.yaml \
   --data-dir /path/to/data \
   --model ridge \
