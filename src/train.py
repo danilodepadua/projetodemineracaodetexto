@@ -124,8 +124,8 @@ def parse_args():
     parser.add_argument(
         "--data-dir",
         type=Path,
-        required=True,
-        help="Directory containing the cleaned dataset and TF-IDF matrices.",
+        default=Path("data"),
+        help="Directory containing the cleaned dataset and TF-IDF matrices (default: data).",
     )
 
     parser.add_argument(

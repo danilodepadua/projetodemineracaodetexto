@@ -190,8 +190,8 @@ def parse_args():
     parser.add_argument(
         "--data-dir",
         type=Path,
-        required=True,
-        help="Directory containing the cleaned validation data.",
+        default=Path("data"),
+        help="Directory containing the cleaned validation data (default: data).",
     )
 
     parser.add_argument(

@@ -20,23 +20,19 @@ Train the models with [train.py](../src/train.py) or follow [trainning.md](train
 
 ## Run evaluation
 
-Evaluate the Ridge models with:
+Evaluate the Ridge models against `data/` with:
 
 ```bash
-.venv/bin/python src/evaluate.py --data-dir data --model ridge
+.venv/bin/python src/evaluate.py --model ridge
 ```
 
-The supported model names are `ridge` and `linear_svr`. Use the same name used during training:
-
-```bash
-.venv/bin/python src/evaluate.py --data-dir data --model linear_svr
-```
+The supported model names are `ridge` and `linear_svr`. Use the same name used during training. 
 
 For non-default locations, pass the parent directory containing the model-specific folder and the directory for the metrics file:
 
 ```bash
 .venv/bin/python src/evaluate.py \
-  --data-dir data \
+  --data-dir /path/to/data \
   --model ridge \
   --models-dir artifacts/models \
   --output-dir artifacts/evaluation

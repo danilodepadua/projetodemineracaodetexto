@@ -13,23 +13,22 @@ The CSV files must contain the four target columns used by the scripts: `formal_
 
 ## Train a model
 
-Use the default Ridge model with:
+Use the default Ridge model with the repository's `data/` directory:
 
 ```bash
-.venv/bin/python src/train.py --data-dir data --model ridge
+.venv/bin/python src/train.py --model ridge
 ```
 
-The available models are `ridge` and `linear_svr`. If `--model` is omitted, training uses `ridge`. By default, each model is saved under `artifacts/models/<model>/` as one `.joblib` file per target. To choose another output location, pass `--output-dir`:
+The available models are `ridge` and `linear_svr`. If `--model` is omitted, training uses `ridge`. If `--data-dir` is omitted, the script reads from `data` relative to the repository root. By default, each model is saved under `artifacts/models/<model>/` as one `.joblib` file per target. To choose another data or output location, pass `--data-dir` or `--output-dir`:
 
 ```bash
-.venv/bin/python src/train.py --data-dir data --model linear_svr --output-dir artifacts/models
+.venv/bin/python src/train.py --data-dir /path/to/data --model linear_svr --output-dir /path/to/models
 ```
 
 Use `--alpha` to set Ridge regularization. LinearSVR exposes its constructor hyperparameters through `--epsilon`, `--tol`, `--c`, `--loss`, `--fit-intercept` `--no-fit-intercept`, `--intercept-scaling`, `--dual`, `--verbose`, `--random-state`, and `--max-iter`. For example:
 
 ```bash
 .venv/bin/python src/train.py \
-	--data-dir data \
 	--model linear_svr \
 	--c 0.5 \
 	--epsilon 0.1 \
@@ -42,6 +41,10 @@ Training stops with an error when an input file is missing, a CSV and matrix hav
 ## Follow up with evaluation
 
 Continue with evaluation using the same model and data by following the [evaluation guide](evaluate.md).
+
+## Tune hyperparameters
+
+Use the dedicated [tuning guide](tune.md) to compare the supported Ridge and LinearSVR parameter grids before selecting values for training.
 
 ## Source of truth
 

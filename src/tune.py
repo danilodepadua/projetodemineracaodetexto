@@ -175,7 +175,8 @@ def main():
     parser.add_argument(
         "--data-dir",
         type=Path,
-        required=True,
+        default=Path("data"),
+        help="Directory containing the training and validation data (default: data).",
     )
 
     parser.add_argument(

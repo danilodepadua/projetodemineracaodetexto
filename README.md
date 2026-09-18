@@ -47,3 +47,9 @@ To record the locally installed versions:
 ```
 
 The lock file is optional; keep `requirements.txt` as the direct dependency list for the project.
+
+## Guides
+
+- [Training](docs/trainning.md)
+- [Evaluation](docs/evaluate.md)
+- [Hyperparameter tuning](docs/tune.md)
