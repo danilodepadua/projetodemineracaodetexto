@@ -1,6 +1,6 @@
 # Training and evaluation
 
-This guide explains how to train and evaluate the text-mining regression models in this repository. The scripts use cleaned CSV labels and precomputed TF-IDF matrices from `data/`; they do not create or update those input files. Run the commands from the repository root with the project virtual environment.
+This guide explains how to train and evaluate the text-mining regression models in this repository. The scripts use cleaned CSV labels and precomputed TF-IDF matrices; their directories and filenames are configured through [.env](../.env.example). Run the commands from the repository root with the project virtual environment.
 
 ## Prerequisites
 
@@ -25,15 +25,12 @@ The available models are `ridge` and `linear_svr`. If `--model` is omitted, trai
 .venv/bin/python src/train.py --data-dir /path/to/data --model linear_svr --output-dir /path/to/models
 ```
 
-Use `--alpha` to set Ridge regularization. LinearSVR exposes its constructor hyperparameters through `--epsilon`, `--tol`, `--c`, `--loss`, `--fit-intercept` `--no-fit-intercept`, `--intercept-scaling`, `--dual`, `--verbose`, `--random-state`, and `--max-iter`. For example:
+Model parameters are defined in [config/models.yaml](../config/models.yaml). Edit the `default` value in the selected model's `params` mapping, or pass another YAML file with `--config`:
 
 ```bash
 .venv/bin/python src/train.py \
-	--model linear_svr \
-	--c 0.5 \
-	--epsilon 0.1 \
-	--loss squared_epsilon_insensitive \
-	--max-iter 20000
+  --config config/models.yaml \
+  --model linear_svr
 ```
 
 Training stops with an error when an input file is missing, a CSV and matrix have different row counts, a target column is missing, or the model name is unsupported.
@@ -49,4 +46,6 @@ Use the dedicated [tuning guide](tune.md) to compare the supported Ridge and Lin
 ## Source of truth
 
 - [src/train.py](../src/train.py) defines input validation, model options, target names, and model output paths.
+- [configuration.md](configuration.md) defines the `.env` path and filename settings.
+- [config/models.yaml](../config/models.yaml) defines the targets and fitted model parameters.
 - [requirements.txt](../requirements.txt) defines the Python dependencies.

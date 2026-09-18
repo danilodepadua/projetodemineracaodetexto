@@ -1,6 +1,6 @@
 # Evaluate trained models
 
-This guide explains how to evaluate a trained text-mining regression model against the validation dataset. Evaluation uses the cleaned validation labels, the precomputed validation TF-IDF matrix, and one saved model per target. Run the commands from the repository root with the project virtual environment.
+This guide explains how to evaluate a trained text-mining regression model against the validation dataset. Evaluation uses the cleaned validation labels, the precomputed validation TF-IDF matrix, and one saved model per target. Input filenames and output directories come from [.env](../.env.example). Run the commands from the repository root with the project virtual environment.
 
 ## Prerequisites
 
@@ -9,7 +9,7 @@ Install the dependencies and prepare the environment as described in [README.md]
 - `valid_limpo.csv` with the four target columns.
 - `X_valid_tfidf.npz` with the validation TF-IDF features.
 
-The selected model must already be trained. By default, the evaluator expects these files under `artifacts/models/<model>/`:
+The selected model must already be trained with the same [config/models.yaml](../config/models.yaml) target definitions. By default, the evaluator expects these files under `artifacts/models/<model>/`:
 
 - `formal_register.joblib`
 - `thematic_coherence.joblib`
@@ -26,12 +26,13 @@ Evaluate the Ridge models against `data/` with:
 .venv/bin/python src/evaluate.py --model ridge
 ```
 
-The supported model names are `ridge` and `linear_svr`. Use the same name used during training. 
+The model name must be defined in the YAML configuration and must match the name used during training. If `--config` is omitted, the evaluator reads `config/models.yaml`.
 
 For non-default locations, pass the parent directory containing the model-specific folder and the directory for the metrics file:
 
 ```bash
 .venv/bin/python src/evaluate.py \
+  --config config/models.yaml \
   --data-dir /path/to/data \
   --model ridge \
   --models-dir artifacts/models \
@@ -47,5 +48,7 @@ Evaluation stops when a validation input, target column, or model file is missin
 ## Source of truth
 
 - [src/evaluate.py](../src/evaluate.py) defines the inputs, model paths, prediction clipping, metrics, and JSON output.
+- [configuration.md](configuration.md) defines the `.env` path and filename settings.
+- [config/models.yaml](../config/models.yaml) defines the model names and target list used by evaluation.
 - [requirements.txt](../requirements.txt) defines the Python dependencies.
 - [trainning.md](trainning.md) documents the broader training workflow.

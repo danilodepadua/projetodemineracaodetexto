@@ -30,6 +30,12 @@ source .venv/bin/activate
 
 From then on you can run the code as you desire.
 
+## Configure paths
+
+The scripts load `.env` from the repository root automatically. `.env` contains the local defaults and is ignored by Git; use [.env.example](.env.example) as the template when changing paths. Relative paths are resolved from the repository root, and explicit CLI options override `.env` values.
+
+The environment variables define the YAML config path, data directory, four input filenames, model and evaluation output directories, and generated filename templates. See [configuration.md](docs/configuration.md) for the complete list.
+
 ## Update dependencies
 
 Edit `requirements.txt` when adding or updating a dependency, then run:
@@ -53,3 +59,5 @@ The lock file is optional; keep `requirements.txt` as the direct dependency list
 - [Training](docs/trainning.md)
 - [Evaluation](docs/evaluate.md)
 - [Hyperparameter tuning](docs/tune.md)
+- [Model configuration](config/models.yaml)
+- [Environment configuration](docs/configuration.md)
