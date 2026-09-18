@@ -2,57 +2,75 @@ from __future__ import annotations
 
 import argparse
 import json
+from itertools import product
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 from scipy import sparse
-from sklearn.linear_model import Ridge
 from sklearn.metrics import mean_absolute_error, mean_squared_error
-from sklearn.svm import LinearSVR
+
+from model_config import DEFAULT_CONFIG_PATH, create_model, get_model_config, load_config
+from settings import SETTINGS
 
 
-TARGETS = [
-    "formal_register",
-    "thematic_coherence",
-    "narrative_rhetorical_structure",
-    "cohesion",
-]
+def load_data(data_dir: Path, targets: list[str]):
+    data_paths = {
+        "train labels": data_dir / SETTINGS.train_labels_filename,
+        "validation labels": data_dir / SETTINGS.valid_labels_filename,
+        "training TF-IDF": data_dir / SETTINGS.train_tfidf_filename,
+        "validation TF-IDF": data_dir / SETTINGS.valid_tfidf_filename,
+    }
 
+    for file_description, path in data_paths.items():
 
-RIDGE_ALPHAS = [
-    0.01,
-    0.1,
-    1.0,
-    10.0,
-    100.0,
-]
+        if not path.exists():
+            raise FileNotFoundError(
+                f"Required {file_description} file not found: {path}"
+            )
 
-SVR_C_VALUES = [
-    0.01,
-    0.1,
-    1.0,
-    10.0,
-    100.0,
-]
+    train_df = pd.read_csv(data_paths["train labels"])
 
+    valid_df = pd.read_csv(data_paths["validation labels"])
 
-def load_data(data_dir: Path):
-    train_df = pd.read_csv(
-        data_dir / "train_limpo.csv"
-    )
+    X_train = sparse.load_npz(data_paths["training TF-IDF"])
 
-    valid_df = pd.read_csv(
-        data_dir / "valid_limpo.csv"
-    )
+    X_valid = sparse.load_npz(data_paths["validation TF-IDF"])
 
-    X_train = sparse.load_npz(
-        data_dir / "X_train_tfidf.npz"
-    )
+    if len(train_df) != X_train.shape[0]:
+        raise ValueError(
+            "Row mismatch between "
+            f"{SETTINGS.train_labels_filename} and "
+            f"{SETTINGS.train_tfidf_filename}: "
+            f"{len(train_df)} != {X_train.shape[0]}"
+        )
 
-    X_valid = sparse.load_npz(
-        data_dir / "X_valid_tfidf.npz"
-    )
+    if len(valid_df) != X_valid.shape[0]:
+        raise ValueError(
+            "Row mismatch between "
+            f"{SETTINGS.valid_labels_filename} and "
+            f"{SETTINGS.valid_tfidf_filename}: "
+            f"{len(valid_df)} != {X_valid.shape[0]}"
+        )
+
+    if X_train.shape[1] != X_valid.shape[1]:
+        raise ValueError(
+            "Feature mismatch between training and validation TF-IDF matrices: "
+            f"{X_train.shape[1]} != {X_valid.shape[1]}"
+        )
+
+    for dataframe_name, dataframe in (
+        (SETTINGS.train_labels_filename, train_df),
+        (SETTINGS.valid_labels_filename, valid_df),
+    ):
+        missing_targets = [
+            target for target in targets if target not in dataframe.columns
+        ]
+
+        if missing_targets:
+            raise ValueError(
+                f"Missing target columns in {dataframe_name}: {missing_targets}"
+            )
 
     return train_df, valid_df, X_train, X_valid
 
@@ -78,22 +96,36 @@ def evaluate(y_true, y_pred):
     }
 
 
-def tune_ridge(
+def parameter_combinations(model_config: dict):
+    tuning = model_config["tuning"]
+    parameter_names = list(tuning)
+    parameter_values = [tuning[name] for name in parameter_names]
+
+    for values in product(*parameter_values):
+        yield dict(zip(parameter_names, values))
+
+
+def tune_model(
+    model_name: str,
+    model_config: dict,
     train_df,
     valid_df,
     X_train,
     X_valid,
+    targets: list[str],
 ):
     results = {}
 
-    for target in TARGETS:
+    for target in targets:
         results[target] = []
 
         y_train = train_df[target].to_numpy()
         y_valid = valid_df[target].to_numpy()
 
-        for alpha in RIDGE_ALPHAS:
-            model = Ridge(alpha=alpha)
+        for tuned_params in parameter_combinations(model_config):
+            params = dict(model_config["params"])
+            params.update(tuned_params)
+            model = create_model(model_name, params)
 
             model.fit(
                 X_train,
@@ -108,49 +140,7 @@ def tune_ridge(
             )
 
             results[target].append({
-                "alpha": alpha,
-                **metrics,
-            })
-
-    return results
-
-
-def tune_linear_svr(
-    train_df,
-    valid_df,
-    X_train,
-    X_valid,
-):
-    results = {}
-
-    for target in TARGETS:
-        results[target] = []
-
-        y_train = train_df[target].to_numpy()
-        y_valid = valid_df[target].to_numpy()
-
-        for c in SVR_C_VALUES:
-            model = LinearSVR(
-                C=c,
-                epsilon=0.0,
-                random_state=42,
-                max_iter=10_000,
-            )
-
-            model.fit(
-                X_train,
-                y_train,
-            )
-
-            predictions = model.predict(X_valid)
-
-            metrics = evaluate(
-                y_valid,
-                predictions,
-            )
-
-            results[target].append({
-                "C": c,
+                **tuned_params,
                 **metrics,
             })
 
@@ -169,47 +159,82 @@ def find_best(results):
     return best
 
 
+def print_best(model_name: str, results: dict):
+    print(f"\nBest {model_name} parameters:")
+
+    for target, result in results.items():
+        parameters = {
+            key: value
+            for key, value in result.items()
+            if key not in {"rmse", "mae"}
+        }
+        parameter_text = " ".join(
+            f"{name}={value}" for name, value in parameters.items()
+        )
+
+        print(
+            f"{target:<35} "
+            f"{parameter_text:<20} "
+            f"RMSE={result['rmse']:.4f} "
+            f"MAE={result['mae']:.4f}"
+        )
+
+
 def main():
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
+        "--config",
+        type=Path,
+        default=DEFAULT_CONFIG_PATH,
+        help="YAML model configuration (default: MODEL_CONFIG_PATH from .env).",
+    )
+
+    parser.add_argument(
         "--data-dir",
         type=Path,
-        default=Path("data"),
-        help="Directory containing the training and validation data (default: data).",
+        default=SETTINGS.data_dir,
+        help="Directory containing training and validation data (default: DATA_DIR from .env).",
     )
 
     parser.add_argument(
         "--output",
         type=Path,
-        default=Path(
-            "artifacts/evaluation/tuning.json"
-        ),
+        default=SETTINGS.evaluation_dir / SETTINGS.tuning_filename,
+        help="JSON output path (default: EVALUATION_DIR/TUNING_FILENAME from .env).",
     )
 
     args = parser.parse_args()
+    config = load_config(args.config)
+    targets = config["targets"]
 
     (
         train_df,
         valid_df,
         X_train,
         X_valid,
-    ) = load_data(args.data_dir)
+    ) = load_data(args.data_dir, targets)
 
     print("Tuning Ridge...")
-    ridge_results = tune_ridge(
+    ridge_results = tune_model(
+        "ridge",
+        get_model_config(config, "ridge"),
         train_df,
         valid_df,
         X_train,
         X_valid,
+        targets,
     )
 
     print("Tuning LinearSVR...")
-    svr_results = tune_linear_svr(
+    svr_results = tune_model(
+        "linear_svr",
+        get_model_config(config, "linear_svr"),
         train_df,
         valid_df,
         X_train,
         X_valid,
+        targets,
     )
 
     results = {
@@ -236,23 +261,8 @@ def main():
             indent=2,
         )
 
-    print("\nBest Ridge parameters:")
-    for target, result in results["best"]["ridge"].items():
-        print(
-            f"{target:<35} "
-            f"alpha={result['alpha']:<8} "
-            f"RMSE={result['rmse']:.4f} "
-            f"MAE={result['mae']:.4f}"
-        )
-
-    print("\nBest LinearSVR parameters:")
-    for target, result in results["best"]["linear_svr"].items():
-        print(
-            f"{target:<35} "
-            f"C={result['C']:<8} "
-            f"RMSE={result['rmse']:.4f} "
-            f"MAE={result['mae']:.4f}"
-        )
+    print_best("Ridge", results["best"]["ridge"])
+    print_best("LinearSVR", results["best"]["linear_svr"])
 
 
 if __name__ == "__main__":

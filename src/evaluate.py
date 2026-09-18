@@ -10,20 +10,14 @@ import pandas as pd
 from scipy import sparse
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 
-
-# 4 specific target columns in the dataset that we want to predict
-TARGETS = [
-    "formal_register",
-    "thematic_coherence",
-    "narrative_rhetorical_structure",
-    "cohesion",
-]
+from model_config import DEFAULT_CONFIG_PATH, get_model_config, load_config
+from settings import SETTINGS
 
 
-def load_validation_data(data_dir: Path):
+def load_validation_data(data_dir: Path, targets: list[str]):
     """Load validation labels and the precomputed TF-IDF matrix."""
-    valid_path = data_dir / "valid_limpo.csv"
-    tfidf_path = data_dir / "X_valid_tfidf.npz"
+    valid_path = data_dir / SETTINGS.valid_labels_filename
+    tfidf_path = data_dir / SETTINGS.valid_tfidf_filename
 
     if not valid_path.exists():
         raise FileNotFoundError(
@@ -40,13 +34,15 @@ def load_validation_data(data_dir: Path):
 
     if len(valid_df) != X_valid.shape[0]:
         raise ValueError(
-            "Row mismatch between valid_limpo.csv and "
-            f"X_valid_tfidf.npz: {len(valid_df)} != {X_valid.shape[0]}"
+            "Row mismatch between "
+            f"{SETTINGS.valid_labels_filename} and "
+            f"{SETTINGS.valid_tfidf_filename}: "
+            f"{len(valid_df)} != {X_valid.shape[0]}"
         )
 
     missing_targets = [
         target
-        for target in TARGETS
+        for target in targets
         if target not in valid_df.columns
     ]
 
@@ -58,12 +54,16 @@ def load_validation_data(data_dir: Path):
     return valid_df, X_valid
 
 
-def load_models(model_dir: Path):
+def load_models(model_dir: Path, targets: list[str]):
     """Load one trained model for each target."""
     models = {}
 
-    for target in TARGETS:
-        model_path = model_dir / f"{target}.joblib"
+    for target in targets:
+        model_filename = SETTINGS.model_filename_template.format(
+            model=model_dir.name,
+            target=target,
+        )
+        model_path = model_dir / model_filename
 
         if not model_path.exists():
             raise FileNotFoundError(
@@ -79,12 +79,13 @@ def evaluate_models(
     valid_df: pd.DataFrame,
     X_valid,
     models: dict,
+    targets: list[str],
 ):
     """Evaluate all target models on the validation set."""
     metrics = {}
     predictions = {}
 
-    for target in TARGETS:
+    for target in targets:
         y_true = valid_df[target].to_numpy()
 
         y_pred_raw = models[target].predict(X_valid)
@@ -114,13 +115,13 @@ def evaluate_models(
         "rmse": float(
             np.mean([
                 metrics[target]["rmse"]
-                for target in TARGETS
+                for target in targets
             ])
         ),
         "mae": float(
             np.mean([
                 metrics[target]["mae"]
-                for target in TARGETS
+                for target in targets
             ])
         ),
     }
@@ -139,7 +140,10 @@ def save_metrics(
         exist_ok=True,
     )
 
-    output_path = output_dir / f"{model_name}.json"
+    output_filename = SETTINGS.metrics_filename_template.format(
+        model=model_name,
+    )
+    output_path = output_dir / output_filename
 
     with output_path.open(
         "w",
@@ -158,11 +162,12 @@ def save_metrics(
 def print_metrics(
     model_name: str,
     metrics: dict,
+    targets: list[str],
 ):
     print(f"\nModel: {model_name}")
     print("-" * 60)
 
-    for target in TARGETS:
+    for target in targets:
         result = metrics[target]
 
         print(
@@ -188,31 +193,37 @@ def parse_args():
     )
 
     parser.add_argument(
+        "--config",
+        type=Path,
+        default=DEFAULT_CONFIG_PATH,
+        help="YAML model configuration (default: MODEL_CONFIG_PATH from .env).",
+    )
+
+    parser.add_argument(
         "--data-dir",
         type=Path,
-        default=Path("data"),
-        help="Directory containing the cleaned validation data (default: data).",
+        default=SETTINGS.data_dir,
+        help="Directory containing validation data (default: DATA_DIR from .env).",
     )
 
     parser.add_argument(
         "--model",
-        choices=["ridge", "linear_svr"],
         required=True,
-        help="Model family to evaluate.",
+        help="Model family to evaluate (must be defined in the YAML configuration).",
     )
 
     parser.add_argument(
         "--models-dir",
         type=Path,
-        default=Path("artifacts/models"),
-        help="Directory containing trained models.",
+        default=SETTINGS.models_dir,
+        help="Directory containing trained models (default: MODELS_DIR from .env).",
     )
 
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path("artifacts/evaluation"),
-        help="Directory where evaluation results will be stored.",
+        default=SETTINGS.evaluation_dir,
+        help="Directory for evaluation results (default: EVALUATION_DIR from .env).",
     )
 
     return parser.parse_args()
@@ -220,14 +231,18 @@ def parse_args():
 
 def main():
     args = parse_args()
+    config = load_config(args.config)
+    get_model_config(config, args.model)
+    targets = config["targets"]
 
     valid_df, X_valid = load_validation_data(
-        args.data_dir
+        args.data_dir,
+        targets,
     )
 
     model_dir = args.models_dir / args.model
 
-    models = load_models(model_dir)
+    models = load_models(model_dir, targets)
 
     print(
         f"Loaded {X_valid.shape[0]} validation samples "
@@ -238,11 +253,13 @@ def main():
         valid_df=valid_df,
         X_valid=X_valid,
         models=models,
+        targets=targets,
     )
 
     print_metrics(
         model_name=args.model,
         metrics=metrics,
+        targets=targets,
     )
 
     output_path = save_metrics(
