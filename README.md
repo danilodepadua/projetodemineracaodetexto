@@ -4,6 +4,10 @@ Environment for text analysis and machine learning experiments using the data av
 
 ## Start with devcontainer
 
+You can open it in a devcontainer by clicking here: [![Open in Dev Container](https://img.shields.io/badge/Open%20in-Dev%20Container-blue?logo=visual-studio-code)](https://code.visualstudio.com/docs/devcontainers/containers)
+
+or,
+
 1. Install Docker and the VS Code **Dev Containers** extension.
 2. Open this repository in VS Code.
 3. Run `Dev Containers: Reopen in Container` from the Command Palette.
@@ -23,6 +27,8 @@ Activate the environment when you want to run commands directly:
 ```bash
 source .venv/bin/activate
 ```
+
+From then on you can run the code as you desire.
 
 ## Update dependencies
 
