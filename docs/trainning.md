@@ -29,10 +29,9 @@ Training stops with an error when an input file is missing, a CSV and matrix hav
 
 ## Follow up with evaluation
 
-Continue with evaluation using the same model and data, follow [docs/evaluate.md](../docs/evaluate.md).
+Continue with evaluation using the same model and data by following the [evaluation guide](evaluate.md).
 
 ## Source of truth
 
 - [src/train.py](../src/train.py) defines input validation, model options, target names, and model output paths.
-- [src/evaluate.py](../src/evaluate.py) defines validation loading, prediction clipping, metrics, and JSON output.
 - [requirements.txt](../requirements.txt) defines the Python dependencies.
