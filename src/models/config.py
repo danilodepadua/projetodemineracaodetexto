@@ -7,10 +7,7 @@ import yaml
 from sklearn.linear_model import Ridge
 from sklearn.svm import LinearSVR
 
-if __package__:
-    from .settings import SETTINGS
-else:
-    from settings import SETTINGS
+from ..settings import SETTINGS
 
 DEFAULT_CONFIG_PATH = SETTINGS.model_config_path
 

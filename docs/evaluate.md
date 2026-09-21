@@ -16,14 +16,14 @@ The selected model must already be trained with the same [config/models.yaml](..
 - `narrative_rhetorical_structure.joblib`
 - `cohesion.joblib`
 
-Train the models with [train.py](../src/train.py) or follow [trainning.md](trainning.md) before evaluating them.
+Train the models with [train.py](../src/models/train.py) or follow [trainning.md](trainning.md) before evaluating them.
 
 ## Run evaluation
 
 Evaluate the Ridge models against `data/` with:
 
 ```bash
-python src/evaluate.py --model ridge
+python -m src.models.evaluate --model ridge
 ```
 
 The model name must be defined in the YAML configuration and must match the name used during training. If `--config` is omitted, the evaluator reads `config/models.yaml`.
@@ -31,7 +31,7 @@ The model name must be defined in the YAML configuration and must match the name
 For non-default locations, pass the parent directory containing the model-specific folder and the directory for the metrics file:
 
 ```bash
-python src/evaluate.py \
+python -m src.models.evaluate \
   --config config/models.yaml \
   --data-dir /path/to/data \
   --model ridge \
@@ -47,7 +47,7 @@ Evaluation stops when a validation input, target column, or model file is missin
 
 ## Source of truth
 
-- [src/evaluate.py](../src/evaluate.py) defines the inputs, model paths, prediction clipping, metrics, and JSON output.
+- [src/models/evaluate.py](../src/models/evaluate.py) defines the inputs, model paths, prediction clipping, metrics, and JSON output.
 - [configuration.md](configuration.md) defines the `.env` path and filename settings.
 - [config/models.yaml](../config/models.yaml) defines the model names and target list used by evaluation.
 - [requirements.txt](../requirements.txt) defines the Python dependencies.
