@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from collections.abc import Iterable
 
-from scipy.sparse import spmatrix
+from scipy.sparse import csr_matrix
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 
 
@@ -12,9 +12,9 @@ class Representation:
     """A fitted vectorizer and its train, validation, and test matrices."""
 
     vectorizer: CountVectorizer | TfidfVectorizer
-    train: spmatrix
-    valid: spmatrix
-    test: spmatrix
+    train: csr_matrix
+    valid: csr_matrix
+    test: csr_matrix
 
 
 def build_representation(
@@ -39,7 +39,7 @@ def build_representation(
     else:
         raise ValueError(f"Unsupported representation: {name}")
 
-    train = vectorizer.fit_transform(train_texts)
-    valid = vectorizer.transform(valid_texts)
-    test = vectorizer.transform(test_texts)
+    train = csr_matrix(vectorizer.fit_transform(train_texts))
+    valid = csr_matrix(vectorizer.transform(valid_texts))
+    test = csr_matrix(vectorizer.transform(test_texts))
     return Representation(vectorizer=vectorizer, train=train, valid=valid, test=test)
