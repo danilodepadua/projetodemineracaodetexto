@@ -36,8 +36,7 @@ def _write_reports(
     """Persist validation and marker audit reports."""
     diagnostics.to_csv(reports_dir / "validation_diagnostics.csv", index=False)
     duplicates.to_csv(reports_dir / "duplicate_essays.csv", index=False)
-    marker_inventory(datasets).to_csv(
-        reports_dir / "marker_inventory.csv", index=False)
+    marker_inventory(datasets).to_csv(reports_dir / "marker_inventory.csv", index=False)
 
 
 def _texts(dataset: pd.DataFrame) -> list[str]:
@@ -71,8 +70,7 @@ def _write_representation(
         path = representation_dir / f"X_{split}.npz"
         sparse.save_npz(path, matrix)
         if _matrix_shape(sparse.load_npz(path)) != _matrix_shape(matrix):
-            raise AssertionError(
-                f"Serialized {name} {split} matrix shape changed")
+            raise AssertionError(f"Serialized {name} {split} matrix shape changed")
 
     joblib.dump(built.vectorizer, representation_dir / "vectorizer.joblib")
     return {
@@ -87,8 +85,7 @@ def _write_representation(
 def run(data_dir: Path, output_dir: Path, representation: str = "all") -> Path:
     """Validate, clean, represent, and persist the competition datasets."""
     hashes = file_hashes(data_dir)
-    datasets, diagnostics, duplicates = validate_datasets(
-        load_datasets(data_dir))
+    datasets, diagnostics, duplicates = validate_datasets(load_datasets(data_dir))
     cleaned_datasets = {
         name: clean_dataset(dataset) for name, dataset in datasets.items()
     }
