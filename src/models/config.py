@@ -7,6 +7,8 @@ import yaml
 from sklearn.linear_model import Ridge
 from sklearn.svm import LinearSVR
 
+from ..data.schema import TARGET_COLUMNS
+
 DEFAULT_CONFIG_PATH = Path("config/models.yaml")
 
 MODEL_FACTORIES = {
@@ -26,7 +28,11 @@ def load_config(config_path: Path = DEFAULT_CONFIG_PATH) -> dict[str, Any]:
     if not isinstance(config, dict):
         raise ValueError("Model configuration must contain a YAML mapping")
 
-    targets = config.get("targets")
+    targets = config.get("targets", TARGET_COLUMNS)
+    if targets != TARGET_COLUMNS:
+        raise ValueError(
+            "Model configuration targets must match the canonical data schema"
+        )
     models = config.get("models")
 
     if (
