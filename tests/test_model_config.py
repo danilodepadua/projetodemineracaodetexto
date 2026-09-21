@@ -31,5 +31,8 @@ def test_tune_model_uses_configured_parameter_grid():
         targets,
     )
 
-    assert len(results["formal_register"]) == len(ridge["tuning"]["alpha"])
+    expected_combinations = 1
+    for values in ridge["tuning"].values():
+        expected_combinations *= len(values)
+    assert len(results["formal_register"]) == expected_combinations
     assert {"alpha", "rmse", "mae"} <= set(results["formal_register"][0])
