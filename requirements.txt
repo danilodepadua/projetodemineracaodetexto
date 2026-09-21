@@ -1,0 +1,17 @@
+# Tabular data and sparse matrices
+numpy>=1.26,<3
+pandas>=2.1,<4
+scipy>=1.11,<2
+
+# Vectorization and machine learning models
+scikit-learn>=1.3,<2
+joblib>=1.3,<2
+PyYAML>=6,<7
+python-dotenv>=1,<2
+
+# Notebooks and interactive exploration
+jupyterlab>=4,<5
+ipykernel>=6,<8
+pytest>=8,<10
+ruff>=0.11,<1
+pyright>=1.1,<2

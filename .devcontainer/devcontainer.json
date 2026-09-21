@@ -1,0 +1,24 @@
+{
+    "name": "Text Mining",
+    "image": "mcr.microsoft.com/devcontainers/python:1-3.12-bookworm",
+    "remoteUser": "vscode",
+    "features": {
+        "ghcr.io/devcontainers/features/node:1": {
+            "version": "22"
+        }
+    },
+    "postCreateCommand": "python -m venv .venv && .venv/bin/python -m pip install --upgrade pip && .venv/bin/python -m pip install -r requirements.txt && sudo find /etc/apt/sources.list.d -maxdepth 1 -type f -iname '*yarn*' -delete && sudo apt update && sudo apt install -y bubblewrap && npm install --global @openai/codex",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-python.python",
+                "ms-python.vscode-pylance",
+                "ms-toolsai.jupyter"
+            ],
+            "settings": {
+                "python.defaultInterpreterPath": "${containerWorkspaceFolder}/.venv/bin/python",
+                "python.terminal.activateEnvironment": true
+            }
+        }
+    }
+}
