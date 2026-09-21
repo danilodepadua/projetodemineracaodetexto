@@ -3,7 +3,9 @@ import json
 import numpy as np
 import pandas as pd
 from src.data import validation
-from src.preprocessing import run
+from src.preprocessing import pipeline, run
+from src.representations import Representation
+from src.representations.bert import BertConfig
 
 
 def _write_inputs(data_dir):
@@ -66,10 +68,71 @@ def test_run_writes_clean_data_representations_and_manifest(tmp_path, monkeypatc
     assert structural["name"] == "structural"
     assert structural["feature_count"] == len(structural["feature_names"])
     assert structural["artifact_paths"]["feature_names"]
+    assert not (run_dir / "bert").exists()
     for split, rows in {"train": 2, "valid": 1, "test": 1}.items():
         matrix_path = run_dir / "structural" / f"X_{split}.npy"
         matrix = np.load(matrix_path)
         assert matrix.shape == (rows, structural["feature_count"])
+        assert np.isfinite(matrix).all()
+
+
+def test_run_writes_bert_artifacts_without_serializing_model(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        validation, "EXPECTED_ROWS", {"train": 2, "valid": 1, "test": 1}
+    )
+    data_dir = tmp_path / "raw"
+    data_dir.mkdir()
+    _write_inputs(data_dir)
+
+    def fake_build(name, *inputs, **kwargs):
+        assert name == "bert"
+        config = kwargs["bert_config"]
+        assert isinstance(config, BertConfig)
+        assert config.model_name == "fake"
+        return Representation(
+            vectorizer=config,
+            train=np.ones((2, 3), dtype=np.float32),
+            valid=np.ones((1, 3), dtype=np.float32),
+            test=np.ones((1, 3), dtype=np.float32),
+            metadata={
+                "representation": "bert",
+                "model_identifier": config.model_name,
+                "hidden_size": 3,
+                "pooling": "masked mean",
+                "chunk_strategy": "non-overlapping",
+                "maximum_sequence_length": 8,
+                "batch_size": config.batch_size,
+                "device_used": config.device,
+                "split_statistics": {},
+            },
+        )
+
+    monkeypatch.setattr(pipeline, "build_representation", fake_build)
+    run_dir = pipeline.run(
+        data_dir,
+        tmp_path / "artifacts",
+        representation="bert",
+        bert_model="fake",
+        bert_device="cpu",
+        bert_batch_size=2,
+    )
+    metadata = json.loads((run_dir / "manifest.json").read_text())["representations"][
+        "bert"
+    ]
+
+    assert metadata["name"] == "bert"
+    assert metadata["hidden_size"] == 3
+    assert metadata["matrix_shapes"] == {
+        "train": [2, 3],
+        "valid": [1, 3],
+        "test": [1, 3],
+    }
+    assert metadata["artifact_paths"]["X_train"] == "bert/X_train.npy"
+    assert not (run_dir / "bert" / "vectorizer.joblib").exists()
+    assert not (run_dir / "bert" / "model.model").exists()
+    for split, rows in {"train": 2, "valid": 1, "test": 1}.items():
+        matrix = np.load(run_dir / "bert" / f"X_{split}.npy")
+        assert matrix.shape == (rows, 3)
         assert np.isfinite(matrix).all()
 
 
