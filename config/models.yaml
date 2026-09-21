@@ -4,21 +4,38 @@ targets:
   - narrative_rhetorical_structure
   - cohesion
 
+representations:
+  - bow
+  - tf
+  - tfidf
+  - structural
+  - word2vec_cbow
+  - word2vec_skipgram
+  - essay_prompt
+  - bert
+
 models:
   ridge:
     params:
       alpha:
         default: 1.0
         values: [0.01, 0.1, 1.0, 10.0, 100.0]
+      fit_intercept:
+        default: true
+        values: [true, false]
 
   linear_svr:
     params:
       C:
         default: 1.0
         values: [0.01, 0.1, 1.0, 10.0, 100.0]
-      epsilon: 0.0
+      epsilon:
+        default: 0.0
+        values: [0.0, 0.1]
       tol: 0.0001
-      loss: epsilon_insensitive
+      loss:
+        default: epsilon_insensitive
+        values: [epsilon_insensitive, squared_epsilon_insensitive]
       fit_intercept: true
       intercept_scaling: 1.0
       dual: auto

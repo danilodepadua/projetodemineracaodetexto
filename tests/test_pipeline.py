@@ -1,8 +1,11 @@
 import json
 
+import numpy as np
 import pandas as pd
 from src.data import validation
-from src.preprocessing import run
+from src.preprocessing import pipeline, run
+from src.representations import Representation
+from src.representations.bert import BertConfig
 
 
 def _write_inputs(data_dir):
@@ -43,8 +46,182 @@ def test_run_writes_clean_data_representations_and_manifest(tmp_path, monkeypatc
     manifest = json.loads((run_dir / "manifest.json").read_text())
 
     assert (run_dir / "train_clean.csv").is_file()
-    assert (run_dir / "tfidf" / "vectorizer.joblib").is_file()
-    assert (run_dir / "tf" / "X_test.npz").is_file()
+    for name in ("bow", "tf", "tfidf"):
+        assert (run_dir / name / "vectorizer.joblib").is_file()
+        assert (run_dir / name / "X_train.npz").is_file()
+        assert (run_dir / name / "X_valid.npz").is_file()
+        assert (run_dir / name / "X_test.npz").is_file()
+
+        metadata = manifest["representations"][name]
+        assert metadata["name"] == name
+        assert metadata["vectorizer_type"]
+        assert metadata["configuration"]
+        assert metadata["vocabulary_size"] == metadata["feature_count"]
+        assert metadata["matrix_shapes"]["train"][0] == 2
+        assert metadata["artifact_paths"]["vectorizer"]
+
     assert manifest["representations"]["tfidf"]["shapes"]["train"][0] == 2
     assert manifest["representations"]["tfidf"]["feature_count"] > 0
     assert manifest["input_hashes"]["train.csv"]
+
+    structural = manifest["representations"]["structural"]
+    assert structural["name"] == "structural"
+    assert structural["feature_count"] == len(structural["feature_names"])
+    assert structural["artifact_paths"]["feature_names"]
+    assert not (run_dir / "bert").exists()
+    for split, rows in {"train": 2, "valid": 1, "test": 1}.items():
+        matrix_path = run_dir / "structural" / f"X_{split}.npy"
+        matrix = np.load(matrix_path)
+        assert matrix.shape == (rows, structural["feature_count"])
+        assert np.isfinite(matrix).all()
+
+
+def test_run_writes_bert_artifacts_without_serializing_model(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        validation, "EXPECTED_ROWS", {"train": 2, "valid": 1, "test": 1}
+    )
+    data_dir = tmp_path / "raw"
+    data_dir.mkdir()
+    _write_inputs(data_dir)
+
+    def fake_build(name, *inputs, **kwargs):
+        assert name == "bert"
+        config = kwargs["bert_config"]
+        assert isinstance(config, BertConfig)
+        assert config.model_name == "fake"
+        return Representation(
+            vectorizer=config,
+            train=np.ones((2, 3), dtype=np.float32),
+            valid=np.ones((1, 3), dtype=np.float32),
+            test=np.ones((1, 3), dtype=np.float32),
+            metadata={
+                "representation": "bert",
+                "model_identifier": config.model_name,
+                "hidden_size": 3,
+                "pooling": "masked mean",
+                "chunk_strategy": "non-overlapping",
+                "maximum_sequence_length": 8,
+                "batch_size": config.batch_size,
+                "device_used": config.device,
+                "split_statistics": {},
+            },
+        )
+
+    monkeypatch.setattr(pipeline, "build_representation", fake_build)
+    run_dir = pipeline.run(
+        data_dir,
+        tmp_path / "artifacts",
+        representation="bert",
+        bert_model="fake",
+        bert_device="cpu",
+        bert_batch_size=2,
+    )
+    metadata = json.loads((run_dir / "manifest.json").read_text())["representations"][
+        "bert"
+    ]
+
+    assert metadata["name"] == "bert"
+    assert metadata["hidden_size"] == 3
+    assert metadata["matrix_shapes"] == {
+        "train": [2, 3],
+        "valid": [1, 3],
+        "test": [1, 3],
+    }
+    assert metadata["artifact_paths"]["X_train"] == "bert/X_train.npy"
+    assert not (run_dir / "bert" / "vectorizer.joblib").exists()
+    assert not (run_dir / "bert" / "model.model").exists()
+    for split, rows in {"train": 2, "valid": 1, "test": 1}.items():
+        matrix = np.load(run_dir / "bert" / f"X_{split}.npy")
+        assert matrix.shape == (rows, 3)
+        assert np.isfinite(matrix).all()
+
+
+def test_run_writes_word2vec_artifacts_and_manifest(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        validation, "EXPECTED_ROWS", {"train": 2, "valid": 1, "test": 1}
+    )
+    data_dir = tmp_path / "raw"
+    data_dir.mkdir()
+    _write_inputs(data_dir)
+
+    run_dir = run(
+        data_dir,
+        tmp_path / "artifacts",
+        representation="word2vec",
+        word2vec_architecture="skipgram",
+    )
+    metadata = json.loads((run_dir / "manifest.json").read_text())["representations"][
+        "word2vec"
+    ]
+
+    assert (run_dir / "word2vec" / "model.model").is_file()
+    for split in ("train", "valid", "test"):
+        assert (run_dir / "word2vec" / f"X_{split}.npy").is_file()
+        assert (
+            metadata["shapes"][split][0] == {"train": 2, "valid": 1, "test": 1}[split]
+        )
+    assert metadata["architecture"] == "skipgram"
+    assert metadata["sg"] == 1
+    assert metadata["vector_size"] == 100
+    assert metadata["aggregation"] == "mean"
+    assert metadata["vocabulary_size"] == 2
+    assert metadata["coverage"]["train"]["token_coverage"] == 1.0
+    assert metadata["coverage"]["valid"]["zero_vector_documents"] == 0
+    assert metadata["artifact_paths"]["model"]
+
+
+def test_run_writes_explicit_structural_artifacts(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        validation, "EXPECTED_ROWS", {"train": 2, "valid": 1, "test": 1}
+    )
+    data_dir = tmp_path / "raw"
+    data_dir.mkdir()
+    _write_inputs(data_dir)
+
+    run_dir = run(data_dir, tmp_path / "artifacts", representation="structural")
+    metadata = json.loads((run_dir / "manifest.json").read_text())["representations"][
+        "structural"
+    ]
+    feature_names = json.loads(
+        (run_dir / "structural" / "feature_names.json").read_text()
+    )
+
+    assert feature_names == metadata["feature_names"]
+    assert metadata["feature_definitions"]
+    assert metadata["scaling"] == "none"
+    assert metadata["matrix_shapes"] == {
+        "train": [2, metadata["feature_count"]],
+        "valid": [1, metadata["feature_count"]],
+        "test": [1, metadata["feature_count"]],
+    }
+
+
+def test_run_writes_essay_prompt_artifacts_and_manifest(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        validation, "EXPECTED_ROWS", {"train": 2, "valid": 1, "test": 1}
+    )
+    data_dir = tmp_path / "raw"
+    data_dir.mkdir()
+    _write_inputs(data_dir)
+
+    run_dir = run(data_dir, tmp_path / "artifacts", representation="essay_prompt")
+    metadata = json.loads((run_dir / "manifest.json").read_text())["representations"][
+        "essay_prompt"
+    ]
+    feature_names = json.loads(
+        (run_dir / "essay_prompt" / "feature_names.json").read_text()
+    )
+
+    assert metadata["name"] == "essay_prompt"
+    assert metadata["feature_count"] == len(feature_names) == 6
+    assert metadata["feature_names"] == feature_names
+    assert metadata["tfidf"]["fit_scope"] == "train essay_clean only"
+    assert metadata["word2vec"]["fit_scope"] == "train essay_clean tokens only"
+    assert metadata["artifact_paths"]["tfidf_vectorizer"]
+    assert metadata["artifact_paths"]["word2vec_cbow"]
+    assert metadata["artifact_paths"]["word2vec_skipgram"]
+
+    for split, rows in {"train": 2, "valid": 1, "test": 1}.items():
+        matrix = np.load(run_dir / "essay_prompt" / f"X_{split}.npy")
+        assert matrix.shape == (rows, 6)
+        assert np.isfinite(matrix).all()

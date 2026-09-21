@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from collections.abc import Mapping
 from pathlib import Path
 
 import joblib
@@ -9,19 +10,22 @@ import numpy as np
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 
 from .config import DEFAULT_CONFIG_PATH, get_model_config, load_config
-from .data import load_split, resolve_run_dir, validate_run
+from .data import load_experiment_data, resolve_run_dir
 
 
 def evaluate_models(
-    valid_df, X_valid, model_dir: Path, targets: list[str]
+    y_valid: Mapping[str, np.ndarray],
+    X_valid,
+    model_dir: Path,
+    targets: list[str],
 ) -> dict[str, dict[str, float]]:
     metrics = {}
     for target in targets:
         model = joblib.load(model_dir / f"{target}.joblib")
         predictions = np.clip(model.predict(X_valid), 1.0, 5.0)
         metrics[target] = {
-            "rmse": float(np.sqrt(mean_squared_error(valid_df[target], predictions))),
-            "mae": float(mean_absolute_error(valid_df[target], predictions)),
+            "rmse": float(np.sqrt(mean_squared_error(y_valid[target], predictions))),
+            "mae": float(mean_absolute_error(y_valid[target], predictions)),
         }
     metrics["overall"] = {
         key: float(np.mean([metrics[target][key] for target in targets]))
@@ -51,9 +55,13 @@ def main() -> None:
     get_model_config(config, args.model)
     targets = config["targets"]
     run_dir = resolve_run_dir(args.run_dir)
-    validate_run(run_dir, args.representation)
-    valid_df, X_valid = load_split(run_dir, "valid", args.representation, targets)
-    metrics = evaluate_models(valid_df, X_valid, args.models_dir / args.model, targets)
+    data = load_experiment_data(run_dir, args.representation, targets)
+    metrics = evaluate_models(
+        data.y_valid,
+        data.X_valid,
+        args.models_dir / args.model,
+        targets,
+    )
     args.output_dir.mkdir(parents=True, exist_ok=True)
     (args.output_dir / f"{args.model}.json").write_text(
         json.dumps(metrics, indent=2), encoding="utf-8"
