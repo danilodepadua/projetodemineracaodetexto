@@ -14,4 +14,11 @@ def build_tfidf(
 ) -> Representation:
     """Build TF-IDF matrices with train-only vocabulary and IDF fitting."""
     vectorizer = TfidfVectorizer(**LEXICAL_CONFIG)
-    return fit_and_transform(vectorizer, train_texts, valid_texts, test_texts)
+    return fit_and_transform(
+        vectorizer,
+        train_texts,
+        valid_texts,
+        test_texts,
+        name="tfidf",
+        family="frequency",
+    )

@@ -9,12 +9,7 @@ import unicodedata
 
 import pandas as pd
 
-TARGET_COLUMNS = [
-    "formal_register",
-    "thematic_coherence",
-    "narrative_rhetorical_structure",
-    "cohesion",
-]
+from .schema import TARGET_COLUMNS
 
 EXPECTED_ROWS = {"train": 740, "valid": 125, "test": 370}
 

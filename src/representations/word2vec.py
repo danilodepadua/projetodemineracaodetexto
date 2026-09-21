@@ -130,7 +130,12 @@ def build_word2vec(
     valid, valid_stats = document_vectors(model, valid_texts, config.vector_size)
     test, test_stats = document_vectors(model, test_texts, config.vector_size)
     metadata: dict[str, Any] = {
-        "representation": "word2vec",
+        "name": f"word2vec_{config.architecture}",
+        "representation": f"word2vec_{config.architecture}",
+        "family": "static_semantic",
+        "storage": "dense",
+        "format": "npy",
+        "dtype": str(train.dtype),
         "architecture": config.architecture,
         **config.parameters(),
         "vocabulary_size": len(model.wv),
