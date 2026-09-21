@@ -60,11 +60,21 @@ def _write_representation(
     word2vec_architecture: str = "cbow",
 ) -> dict[str, Any]:
     """Build, persist, and describe one train-fitted representation."""
+    if name == "structural":
+        inputs = (
+            datasets["train"],
+            datasets["valid"],
+            datasets["test"],
+        )
+    else:
+        inputs = (
+            _texts(datasets["train"]),
+            _texts(datasets["valid"]),
+            _texts(datasets["test"]),
+        )
     built = build_representation(
         name,
-        _texts(datasets["train"]),
-        _texts(datasets["valid"]),
-        _texts(datasets["test"]),
+        *inputs,
         word2vec_architecture=word2vec_architecture,
     )
     representation_dir = run_dir / name
@@ -99,6 +109,25 @@ def _write_representation(
                 "artifact_paths": {
                     **artifact_paths,
                     "model": str(Path(name) / model_path.name),
+                },
+            }
+        )
+        return metadata
+
+    if name == "structural":
+        metadata = dict(built.metadata or {})
+        feature_names_path = representation_dir / "feature_names.json"
+        feature_names_path.write_text(
+            json.dumps(metadata["feature_names"], ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        metadata.update(
+            {
+                "name": name,
+                "matrix_shapes": shapes,
+                "artifact_paths": {
+                    **artifact_paths,
+                    "feature_names": str(Path(name) / feature_names_path.name),
                 },
             }
         )
@@ -143,7 +172,9 @@ def run(
     _write_reports(reports_dir, datasets, diagnostics, duplicates)
 
     representation_names = (
-        ["bow", "tf", "tfidf"] if representation == "all" else [representation]
+        ["bow", "tf", "tfidf", "structural"]
+        if representation == "all"
+        else [representation]
     )
     representations = {
         name: _write_representation(
@@ -193,7 +224,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--representation",
-        choices=["bow", "tf", "tfidf", "word2vec", "all"],
+        choices=["bow", "tf", "tfidf", "word2vec", "structural", "all"],
         default="all",
         help="Representation to build (default: all; excludes Word2Vec).",
     )
