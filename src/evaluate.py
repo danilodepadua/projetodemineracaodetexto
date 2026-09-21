@@ -27,7 +27,8 @@ def load_validation_data(data_dir: Path, targets: list[str]):
         raise FileNotFoundError(f"Validation data not found: {valid_path}")
 
     if not tfidf_path.exists():
-        raise FileNotFoundError(f"Validation TF-IDF matrix not found: {tfidf_path}")
+        raise FileNotFoundError(
+            f"Validation TF-IDF matrix not found: {tfidf_path}")
 
     valid_df = pd.read_csv(valid_path)
     X_valid = sparse.load_npz(tfidf_path)
@@ -40,7 +41,8 @@ def load_validation_data(data_dir: Path, targets: list[str]):
             f"{len(valid_df)} != {X_valid.shape[0]}"
         )
 
-    missing_targets = [target for target in targets if target not in valid_df.columns]
+    missing_targets = [
+        target for target in targets if target not in valid_df.columns]
 
     if missing_targets:
         raise ValueError(f"Missing target columns: {missing_targets}")
@@ -150,17 +152,20 @@ def print_metrics(
     for target in targets:
         result = metrics[target]
 
-        print(f"{target:<35} RMSE={result['rmse']:.4f} MAE={result['mae']:.4f}")
+        print(
+            f"{target:<35} RMSE={result['rmse']:.4f} MAE={result['mae']:.4f}")
 
     print("-" * 60)
 
     overall = metrics["overall"]
 
-    print(f"{'Overall':<35} RMSE={overall['rmse']:.4f} MAE={overall['mae']:.4f}")
+    print(
+        f"{'Overall':<35} RMSE={overall['rmse']:.4f} MAE={overall['mae']:.4f}")
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Evaluate trained text-mining models.")
+    parser = argparse.ArgumentParser(
+        description="Evaluate trained text-mining models.")
 
     parser.add_argument(
         "--config",
