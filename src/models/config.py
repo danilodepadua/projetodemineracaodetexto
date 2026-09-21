@@ -7,9 +7,7 @@ import yaml
 from sklearn.linear_model import Ridge
 from sklearn.svm import LinearSVR
 
-from ..settings import SETTINGS
-
-DEFAULT_CONFIG_PATH = SETTINGS.model_config_path
+DEFAULT_CONFIG_PATH = Path("config/models.yaml")
 
 MODEL_FACTORIES = {
     "ridge": Ridge,
