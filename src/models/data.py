@@ -234,3 +234,38 @@ def resolve_run_dir(
     if not candidates:
         raise FileNotFoundError(f"No preprocessing runs found in: {runs_dir}")
     return max(candidates, key=lambda path: path.name)
+
+
+def resolve_representation_run(
+    run_dir: str | Path,
+    representation: str,
+    runs_dir: Path = Path("artifacts/preprocessing"),
+) -> Path | None:
+    """Find the newest available run containing one requested representation."""
+    name = canonicalize_representation(representation)
+    requested = Path(run_dir)
+    if str(run_dir) != "latest":
+        try:
+            manifest = _manifest(requested)
+        except (FileNotFoundError, ValueError):
+            return None
+        available = manifest["representations"]
+        if name in available or (name == "word2vec_cbow" and "word2vec" in available):
+            return requested
+        return None
+
+    candidates = sorted(
+        (
+            path
+            for path in runs_dir.glob("run-*")
+            if path.is_dir() and (path / "manifest.json").is_file()
+        ),
+        key=lambda path: path.name,
+        reverse=True,
+    )
+    for candidate in candidates:
+        manifest = _manifest(candidate)
+        available = manifest["representations"]
+        if name in available or (name == "word2vec_cbow" and "word2vec" in available):
+            return candidate
+    return None

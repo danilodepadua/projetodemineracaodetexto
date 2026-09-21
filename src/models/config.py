@@ -8,6 +8,7 @@ from sklearn.linear_model import Ridge
 from sklearn.svm import LinearSVR
 
 from ..data.schema import TARGET_COLUMNS
+from ..representations.catalog import REPRESENTATION_NAMES
 
 DEFAULT_CONFIG_PATH = Path("config/models.yaml")
 
@@ -33,6 +34,22 @@ def load_config(config_path: Path = DEFAULT_CONFIG_PATH) -> dict[str, Any]:
         raise ValueError(
             "Model configuration targets must match the canonical data schema"
         )
+    representations = config.get("representations")
+    if (
+        not isinstance(representations, list)
+        or not representations
+        or len(representations) != len(set(representations))
+        or any(
+            not isinstance(name, str) or name not in REPRESENTATION_NAMES
+            for name in representations
+        )
+    ):
+        available = ", ".join(REPRESENTATION_NAMES)
+        raise ValueError(
+            "Model configuration must define unique canonical representations "
+            f"from: {available}"
+        )
+
     models = config.get("models")
 
     if (

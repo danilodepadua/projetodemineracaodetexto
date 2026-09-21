@@ -5,6 +5,7 @@ from .data import (
     RepresentationDataset,
     load_experiment_data,
     load_representation,
+    resolve_representation_run,
     resolve_run_dir,
 )
 
@@ -13,5 +14,6 @@ __all__ = [
     "RepresentationDataset",
     "load_experiment_data",
     "load_representation",
+    "resolve_representation_run",
     "resolve_run_dir",
 ]

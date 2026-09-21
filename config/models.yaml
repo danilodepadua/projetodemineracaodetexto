@@ -4,6 +4,16 @@ targets:
   - narrative_rhetorical_structure
   - cohesion
 
+representations:
+  - bow
+  - tf
+  - tfidf
+  - structural
+  - word2vec_cbow
+  - word2vec_skipgram
+  - essay_prompt
+  - bert
+
 models:
   ridge:
     params:
