@@ -1,6 +1,6 @@
-# Training and evaluation
+# Legacy training
 
-This guide explains how to train and evaluate the text-mining regression models in this repository. The scripts use cleaned CSV labels and precomputed TF-IDF matrices; their directories and filenames are configured through [.env](../.env.example). Run the commands from the repository root with the project virtual environment.
+This guide covers the pre-existing model scripts, not the PR0 preprocessing pipeline. Generate or inspect preprocessing artifacts through [preprocessing.md](preprocessing.md) first; these scripts still consume the legacy flat cleaned CSV and TF-IDF filenames configured through [.env](../.env.example). Run commands from the repository root with the project virtual environment.
 
 ## Prerequisites
 
@@ -42,6 +42,10 @@ Continue with evaluation using the same model and data by following the [evaluat
 ## Tune hyperparameters
 
 Use the dedicated [tuning guide](tune.md) to compare the supported Ridge and LinearSVR parameter grids before selecting values for training.
+
+## Scope note
+
+PR0 does not train, tune, compare, or select models. The commands below remain available for the existing baseline workflow.
 
 ## Source of truth
 
