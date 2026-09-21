@@ -17,6 +17,7 @@ from scipy import sparse
 from ..data.cleaning import MARKERS, clean_dataset, marker_inventory
 from ..data.validation import file_hashes, load_datasets, validate_datasets
 from ..representations import build_representation
+from ..representations.bert import BertConfig
 
 
 def _write_clean_datasets(run_dir: Path, datasets: dict[str, pd.DataFrame]) -> None:
@@ -58,6 +59,9 @@ def _write_representation(
     name: str,
     datasets: dict[str, pd.DataFrame],
     word2vec_architecture: str = "cbow",
+    bert_model: str = BertConfig().model_name,
+    bert_device: str = "auto",
+    bert_batch_size: int = 4,
 ) -> dict[str, Any]:
     """Build, persist, and describe one train-fitted representation."""
     if name in {"structural", "essay_prompt"}:
@@ -76,6 +80,11 @@ def _write_representation(
         name,
         *inputs,
         word2vec_architecture=word2vec_architecture,
+        bert_config=BertConfig(
+            model_name=bert_model,
+            device=bert_device,
+            batch_size=bert_batch_size,
+        ),
     )
     representation_dir = run_dir / name
     representation_dir.mkdir()
@@ -96,6 +105,17 @@ def _write_representation(
         artifact_paths[f"X_{split}"] = str(Path(name) / path.name)
 
     shapes = {split: list(_matrix_shape(matrix)) for split, matrix in matrices.items()}
+    if name == "bert":
+        metadata = dict(built.metadata or {})
+        metadata.update(
+            {
+                "name": name,
+                "matrix_shapes": shapes,
+                "artifact_paths": artifact_paths,
+            }
+        )
+        return metadata
+
     if name == "word2vec":
         model_path = representation_dir / "model.model"
         built.vectorizer.save(str(model_path))
@@ -184,6 +204,9 @@ def run(
     output_dir: Path,
     representation: str = "all",
     word2vec_architecture: str = "cbow",
+    bert_model: str = BertConfig().model_name,
+    bert_device: str = "auto",
+    bert_batch_size: int = 4,
 ) -> Path:
     """Validate, clean, represent, and persist the competition datasets."""
     hashes = file_hashes(data_dir)
@@ -209,6 +232,9 @@ def run(
             name,
             cleaned_datasets,
             word2vec_architecture=word2vec_architecture,
+            bert_model=bert_model,
+            bert_device=bert_device,
+            bert_batch_size=bert_batch_size,
         )
         for name in representation_names
     }
@@ -258,16 +284,37 @@ def parse_args() -> argparse.Namespace:
             "word2vec",
             "structural",
             "essay_prompt",
+            "bert",
             "all",
         ],
         default="all",
-        help="Representation to build (default: all; excludes Word2Vec).",
+        help=(
+            "Representation to build (default: all; excludes Word2Vec and BERT; "
+            "BERT inference is explicit)."
+        ),
     )
     parser.add_argument(
         "--word2vec-architecture",
         choices=["cbow", "skipgram"],
         default="cbow",
         help="Word2Vec architecture when --representation word2vec is selected.",
+    )
+    parser.add_argument(
+        "--bert-model",
+        default=BertConfig().model_name,
+        help="Hugging Face model identifier for --representation bert.",
+    )
+    parser.add_argument(
+        "--bert-device",
+        choices=["auto", "cpu", "cuda"],
+        default="auto",
+        help="BERT device policy: auto, cpu, or cuda.",
+    )
+    parser.add_argument(
+        "--bert-batch-size",
+        type=int,
+        default=4,
+        help="BERT chunk batch size.",
     )
     return parser.parse_args()
 
@@ -280,5 +327,8 @@ def main() -> None:
             args.output_dir,
             args.representation,
             args.word2vec_architecture,
+            args.bert_model,
+            args.bert_device,
+            args.bert_batch_size,
         )
     )
