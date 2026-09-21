@@ -13,7 +13,21 @@ python -m src.preprocessing \
   --representation all
 ```
 
-The command validates the supplied competition files, cleans every split independently, builds each representation from the cleaned essays, and writes a timestamped artifact run. Select `--representation bow`, `--representation tf`, `--representation tfidf`, `--representation structural`, `--representation essay_prompt`, or `--representation word2vec`; choose Word2Vec's architecture with `--word2vec-architecture cbow` or `--word2vec-architecture skipgram`. `all` builds BoW, TF, TF-IDF, and structural features, while Word2Vec and essay-prompt features remain explicit. See [preprocessing](docs/preprocessing.md) for representation semantics, artifacts, validation, and reproducibility details.
+The command validates the supplied competition files, cleans every split independently, builds each representation from the cleaned essays, and writes a timestamped artifact run. Select `--representation bow`, `--representation tf`, `--representation tfidf`, `--representation structural`, `--representation essay_prompt`, `--representation word2vec`, or `--representation bert`; choose Word2Vec's architecture with `--word2vec-architecture cbow` or `--word2vec-architecture skipgram`. `all` builds BoW, TF, TF-IDF, and structural features; Word2Vec, essay-prompt, and BERT remain explicit because they are more expensive or specialized. See [preprocessing](docs/preprocessing.md) for representation semantics, artifacts, validation, and reproducibility details.
+
+To build frozen Portuguese BERT contextual essay embeddings explicitly:
+
+```bash
+python -m src.preprocessing \
+  --data-dir data/raw \
+  --output-dir artifacts/preprocessing \
+  --representation bert \
+  --bert-model neuralmind/bert-base-portuguese-cased \
+  --bert-device auto \
+  --bert-batch-size 4
+```
+
+The first run downloads the configured Hugging Face model into the standard local cache. BERT uses the cleaned `essay_clean` text, subword tokenization, non-overlapping chunks when needed, masked token mean pooling, and mean pooling across chunks. It is a frozen feature extractor: no target labels, fine-tuning, regression head, or model weights are written to project artifacts.
 
 To build the six dense essay↔prompt relationship features:
 
@@ -26,12 +40,15 @@ python -m src.preprocessing \
 
 ## Representation layers
 
-The project supports four representation families:
+The project supports five representation families:
 
 - **Frequency-based:** BoW, TF, and TF-IDF.
 - **Semantic:** Word2Vec CBOW and Skip-Gram.
 - **Structural / linguistic:** dense document-level features for length, organization, lexical diversity, punctuation, casing, digits, and cleaning markers.
 - **Essay ↔ Prompt:** lexical overlap, train-only TF-IDF cosine similarity, and train-essay-only Word2Vec CBOW/Skip-Gram cosine similarity.
+- **Contextual semantic:** frozen Portuguese BERTimbau essay embeddings with model-derived hidden size, CPU-safe automatic device selection, configurable batching, and manifest-recorded chunk statistics.
+
+The progression is frequency-based representations → static Word2Vec semantics → contextual BERT semantics. The default `all` command intentionally remains lightweight and does not download or run BERT.
 
 Structural features are raw, deterministic, and unscaled. Word2Vec is a dense distributed semantic representation trained with Gensim. It learns word vectors from training essays only and mean-pools known word vectors into one fixed-size vector per essay. Unknown tokens are ignored; an essay with no known tokens receives a zero vector. Essay-prompt cosine similarities use the same tokenization on cleaned prompt views, return `0.0` for zero-norm comparisons, and never use target values.
 
