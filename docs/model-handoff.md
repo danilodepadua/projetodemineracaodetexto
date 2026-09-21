@@ -1,6 +1,6 @@
-# Model-team handoff
+# Model handoff
 
-Preprocessing ends at a timestamped run. Model code loads matrices and targets through the stable handoff API; it does not open `.npy`, `.npz`, CSV, Joblib, or Gensim artifacts directly.
+Preprocessing ends at a timestamped run. Model code loads matrices and targets through `load_experiment_data`; it does not open `.npy`, `.npz`, CSV, Joblib, or Gensim artifacts directly. Run commands are documented in [models.md](models.md).
 
 ## Catalog
 
@@ -24,9 +24,12 @@ python -m src.preprocessing --data-dir data/raw \
 ## Load an experiment dataset
 
 ```python
-from src.models.data import load_experiment_data, resolve_run_dir
+from src.models.data import (
+    load_experiment_data,
+    resolve_representation_run_or_raise,
+)
 
-run = resolve_run_dir("latest")
+run = resolve_representation_run_or_raise("latest", "tfidf")
 data = load_experiment_data(run, "tfidf")
 
 X_train, y_train = data.X_train, data.y_train
@@ -46,7 +49,7 @@ X_test = data.X_test
 | `essay_prompt` | relationship | NumPy dense |
 | `bert` | contextual | NumPy dense |
 
-`data.metadata` contains the manifest entry, including family, storage, dtype, feature dimension, shapes, configuration, artifact paths, and representation-specific feature names or model details. Rows are checked against persisted split IDs before loading.
+`data.metadata` contains the manifest entry, including family, storage, dtype, feature dimension, shapes, configuration, artifact paths, and representation-specific feature names or model details. Rows are checked against persisted split IDs before loading. Paths inside manifests are relative to the preprocessing run.
 
 Model code must not assume a specific feature dimension, scaling policy, tokenizer, vocabulary, or serialization format. Sparse matrices remain sparse. Combine representations explicitly with `scipy.sparse.hstack` for compatible sparse blocks, `numpy.hstack` for dense blocks, or an intentional sparse/dense conversion at the small-block boundary.
 
@@ -68,4 +71,4 @@ Results are organized as `representation → model → target → hyperparameter
 
 The preprocessing pipeline remains a separate artifact-producing stage because representations have different costs. Generate representations first, then tune existing artifacts. All model commands consume the same validated handoff loader, so sparse and dense representations use the same model boundary.
 
-Training, evaluation, and tuning now all use `load_experiment_data`; no model command reads representation files directly.
+Training, evaluation, and tuning all use `load_experiment_data`; no model command reads representation files directly. Trained bundles live under `artifacts/models/<representation>/<model>/` and include metadata identifying the source run, representation, model, parameters, and targets. Evaluation rejects a bundle whose metadata does not match the requested run and representation.
