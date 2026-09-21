@@ -269,3 +269,24 @@ def resolve_representation_run(
         if name in available or (name == "word2vec_cbow" and "word2vec" in available):
             return candidate
     return None
+
+
+def resolve_representation_run_or_raise(
+    run_dir: str | Path,
+    representation: str,
+    runs_dir: Path = Path("artifacts/preprocessing"),
+) -> Path:
+    """Resolve a representation run or raise an actionable project error."""
+    resolved = resolve_representation_run(run_dir, representation, runs_dir)
+    if resolved is not None:
+        return resolved
+
+    if str(run_dir) == "latest":
+        raise FileNotFoundError(
+            f"No preprocessing run contains representation {representation!r} "
+            f"in {runs_dir}. Run preprocessing for this representation first."
+        )
+    raise ValueError(
+        f"Representation {representation!r} is not available in preprocessing run "
+        f"{run_dir}. Choose a run containing it or regenerate the representation."
+    )
