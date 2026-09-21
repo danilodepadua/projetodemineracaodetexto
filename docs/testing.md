@@ -14,7 +14,7 @@ python -m pip install -r requirements.txt
 python -m pytest
 ```
 
-The suite contains unit tests for cleaning, validation, train-only representation fitting, Word2Vec tokenization/training/pooling/reproducibility, serialization, and end-to-end artifact generation.
+The suite contains unit tests for cleaning, validation, train-only representation fitting, Word2Vec tokenization/training/pooling/reproducibility, frozen BERT chunking/pooling/device/shape/reproducibility, serialization, and end-to-end artifact generation. BERT unit tests use fake tokenizer/model fixtures and do not download network weights.
 
 ## Run focused tests
 
@@ -23,11 +23,14 @@ python -m pytest tests/test_preprocessing.py
 python -m pytest tests/test_validation.py
 python -m pytest tests/test_pipeline.py
 python -m pytest tests/test_word2vec.py
+python -m pytest tests/test_bert.py
 ```
 
 ## Run notebook-regression checks
 
-The legacy comparison test verifies cleaned text, marker counts, TF-IDF vocabulary, matrix shapes, sparsity, and values against the copied reference inputs and existing legacy artifacts. Word2Vec tests use small controlled corpora to verify train-only vocabulary, CBOW/Skip-Gram mapping, mean pooling, OOV zero vectors, native model/NumPy serialization, and deterministic workers=1 runs.
+The legacy comparison test verifies cleaned text, marker counts, TF-IDF vocabulary, matrix shapes, sparsity, and values against the copied reference inputs and existing legacy artifacts. Word2Vec tests use small controlled corpora to verify train-only vocabulary, CBOW/Skip-Gram mapping, mean pooling, OOV zero vectors, native model/NumPy serialization, and deterministic workers=1 runs. BERT tests validate masked pooling and non-overlapping special-token-aware chunks independently, then use mocked AutoTokenizer/AutoModel inference to verify frozen eval-mode, no-grad, batching, finite dense shapes, and repeatability without external network dependence.
+
+For real-data BERT validation, run the explicit `--representation bert` command from [preprocessing](preprocessing.md) inside the Dev Container. The first run may download `neuralmind/bert-base-portuguese-cased`; subsequent runs use the standard Hugging Face cache. Record tokenizer length statistics, actual device, split shapes, chunk counts, finite-value checks, and split execution times. Do not commit the cache, downloaded weights, or generated artifacts.
 
 ```bash
 python -m pytest tests/test_legacy_regression.py

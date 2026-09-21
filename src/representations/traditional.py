@@ -6,6 +6,7 @@ from typing import cast
 import pandas as pd
 
 from ._common import Representation
+from .bert import BertConfig, build_bert
 from .bow import build_bow
 from .essay_prompt import build_essay_prompt
 from .structural import build_structural
@@ -27,8 +28,16 @@ def build_representation(
     test_texts: Iterable[str] | pd.DataFrame,
     word2vec_architecture: str = "cbow",
     word2vec_config: Word2VecConfig | None = None,
+    bert_config: BertConfig | None = None,
 ) -> Representation:
     """Build a named representation for text iterables or cleaned datasets."""
+    if name == "bert":
+        if any(
+            isinstance(dataset, pd.DataFrame)
+            for dataset in (train_texts, valid_texts, test_texts)
+        ):
+            raise TypeError("bert representation requires cleaned essay text iterables")
+        return build_bert(train_texts, valid_texts, test_texts, config=bert_config)
     if name in {"structural", "essay_prompt"}:
         datasets = (train_texts, valid_texts, test_texts)
         if not all(isinstance(dataset, pd.DataFrame) for dataset in datasets):
