@@ -131,3 +131,34 @@ def test_run_writes_explicit_structural_artifacts(tmp_path, monkeypatch):
         "valid": [1, metadata["feature_count"]],
         "test": [1, metadata["feature_count"]],
     }
+
+
+def test_run_writes_essay_prompt_artifacts_and_manifest(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        validation, "EXPECTED_ROWS", {"train": 2, "valid": 1, "test": 1}
+    )
+    data_dir = tmp_path / "raw"
+    data_dir.mkdir()
+    _write_inputs(data_dir)
+
+    run_dir = run(data_dir, tmp_path / "artifacts", representation="essay_prompt")
+    metadata = json.loads((run_dir / "manifest.json").read_text())["representations"][
+        "essay_prompt"
+    ]
+    feature_names = json.loads(
+        (run_dir / "essay_prompt" / "feature_names.json").read_text()
+    )
+
+    assert metadata["name"] == "essay_prompt"
+    assert metadata["feature_count"] == len(feature_names) == 6
+    assert metadata["feature_names"] == feature_names
+    assert metadata["tfidf"]["fit_scope"] == "train essay_clean only"
+    assert metadata["word2vec"]["fit_scope"] == "train essay_clean tokens only"
+    assert metadata["artifact_paths"]["tfidf_vectorizer"]
+    assert metadata["artifact_paths"]["word2vec_cbow"]
+    assert metadata["artifact_paths"]["word2vec_skipgram"]
+
+    for split, rows in {"train": 2, "valid": 1, "test": 1}.items():
+        matrix = np.load(run_dir / "essay_prompt" / f"X_{split}.npy")
+        assert matrix.shape == (rows, 6)
+        assert np.isfinite(matrix).all()

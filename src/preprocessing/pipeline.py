@@ -60,7 +60,7 @@ def _write_representation(
     word2vec_architecture: str = "cbow",
 ) -> dict[str, Any]:
     """Build, persist, and describe one train-fitted representation."""
-    if name == "structural":
+    if name in {"structural", "essay_prompt"}:
         inputs = (
             datasets["train"],
             datasets["valid"],
@@ -114,13 +114,39 @@ def _write_representation(
         )
         return metadata
 
-    if name == "structural":
+    if name in {"structural", "essay_prompt"}:
         metadata = dict(built.metadata or {})
         feature_names_path = representation_dir / "feature_names.json"
         feature_names_path.write_text(
             json.dumps(metadata["feature_names"], ensure_ascii=False, indent=2),
             encoding="utf-8",
         )
+        if name == "structural":
+            metadata.update(
+                {
+                    "name": name,
+                    "matrix_shapes": shapes,
+                    "artifact_paths": {
+                        **artifact_paths,
+                        "feature_names": str(Path(name) / feature_names_path.name),
+                    },
+                }
+            )
+            return metadata
+
+        state_paths = {
+            "tfidf_vectorizer": representation_dir / "tfidf_vectorizer.joblib",
+            "word2vec_cbow": representation_dir / "word2vec_cbow.model",
+            "word2vec_skipgram": representation_dir / "word2vec_skipgram.model",
+        }
+        joblib.dump(built.vectorizer["tfidf"], state_paths["tfidf_vectorizer"])
+        built.vectorizer["word2vec_cbow"].save(str(state_paths["word2vec_cbow"]))
+        built.vectorizer["word2vec_skipgram"].save(
+            str(state_paths["word2vec_skipgram"])
+        )
+        state_artifact_paths = {
+            key: str(Path(name) / path.name) for key, path in state_paths.items()
+        }
         metadata.update(
             {
                 "name": name,
@@ -128,6 +154,7 @@ def _write_representation(
                 "artifact_paths": {
                     **artifact_paths,
                     "feature_names": str(Path(name) / feature_names_path.name),
+                    **state_artifact_paths,
                 },
             }
         )
@@ -224,7 +251,15 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--representation",
-        choices=["bow", "tf", "tfidf", "word2vec", "structural", "all"],
+        choices=[
+            "bow",
+            "tf",
+            "tfidf",
+            "word2vec",
+            "structural",
+            "essay_prompt",
+            "all",
+        ],
         default="all",
         help="Representation to build (default: all; excludes Word2Vec).",
     )
