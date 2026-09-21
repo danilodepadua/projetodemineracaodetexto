@@ -9,4 +9,6 @@ python -m src.models.evaluate --run-dir latest --representation tfidf --model ri
 python -m src.models.tune --run-dir latest --representation tfidf --output artifacts/evaluation/tuning.json
 ```
 
-The preprocessing run is the source of clean datasets, sparse matrices, vectorizers, and manifest metadata. Models validate the requested representation before loading it.
+The preprocessing run is the source of cleaned datasets, native sparse or dense matrices, representation state, row-ID alignment, and manifest metadata. Model code should call `load_experiment_data` from `src.models.data` instead of opening artifacts directly; the loader validates the requested canonical representation before returning train/valid/test matrices and independent target arrays.
+
+See [model-handoff.md](model-handoff.md) for the public model-team API and [architecture.md](architecture.md) for ownership and boundaries.

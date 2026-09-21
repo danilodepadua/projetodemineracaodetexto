@@ -13,7 +13,7 @@ python -m src.preprocessing \
   --representation all
 ```
 
-The command validates the supplied competition files, cleans every split independently, builds each representation from the cleaned essays, and writes a timestamped artifact run. Select `--representation bow`, `--representation tf`, `--representation tfidf`, `--representation structural`, `--representation essay_prompt`, `--representation word2vec`, or `--representation bert`; choose Word2Vec's architecture with `--word2vec-architecture cbow` or `--word2vec-architecture skipgram`. `all` builds BoW, TF, TF-IDF, and structural features; Word2Vec, essay-prompt, and BERT remain explicit because they are more expensive or specialized. See [preprocessing](docs/preprocessing.md) for representation semantics, artifacts, validation, and reproducibility details.
+The command validates the supplied competition files, cleans every split independently, builds the selected representation from cleaned essays, and writes a timestamped artifact run. Canonical names are `bow`, `tf`, `tfidf`, `word2vec_cbow`, `word2vec_skipgram`, `structural`, `essay_prompt`, and `bert`. `all` builds the lightweight `bow`, `tf`, `tfidf`, and `structural` set; the other representations remain explicit because they are more expensive or specialized. See [preprocessing](docs/preprocessing.md) and the [model-team handoff](docs/model-handoff.md).
 
 To build frozen Portuguese BERT contextual essay embeddings explicitly:
 
@@ -48,7 +48,7 @@ The project supports five representation families:
 - **Essay ↔ Prompt:** lexical overlap, train-only TF-IDF cosine similarity, and train-essay-only Word2Vec CBOW/Skip-Gram cosine similarity.
 - **Contextual semantic:** frozen Portuguese BERTimbau essay embeddings with model-derived hidden size, CPU-safe automatic device selection, configurable batching, and manifest-recorded chunk statistics.
 
-The progression is frequency-based representations → static Word2Vec semantics → contextual BERT semantics. The default `all` command intentionally remains lightweight and does not download or run BERT.
+The progression is frequency-based representations → static Word2Vec semantics → contextual BERT semantics, alongside structural and essay-prompt features. The default `all` command intentionally remains lightweight and does not download or run Word2Vec, essay-prompt, or BERT inference.
 
 Structural features are raw, deterministic, and unscaled. Word2Vec is a dense distributed semantic representation trained with Gensim. It learns word vectors from training essays only and mean-pools known word vectors into one fixed-size vector per essay. Unknown tokens are ignored; an essay with no known tokens receives a zero vector. Essay-prompt cosine similarities use the same tokenization on cleaned prompt views, return `0.0` for zero-norm comparisons, and never use target values.
 
@@ -100,6 +100,8 @@ Apply safe formatting and lint fixes with `ruff format src tests` and `ruff chec
 ## Guides
 
 - [Complete current pipeline](docs/pipeline.md)
+- [Model-team handoff](docs/model-handoff.md)
+- [Architecture](docs/architecture.md)
 - [Testing](docs/testing.md)
 - [Preprocessing and artifacts](docs/preprocessing.md)
 - [Legacy training](docs/trainning.md)
