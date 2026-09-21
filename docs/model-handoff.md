@@ -54,16 +54,18 @@ The compatibility input `word2vec` remains accepted for older commands, but new 
 
 ## Model configuration and tuning
 
-`config/models.yaml` is the model-team source of truth for the four targets, enabled model names, fixed parameters, and tunable parameter grids. Tuning now iterates the configured `models` mapping rather than a second hardcoded model list:
+`config/models.yaml` is the model-team source of truth for the four targets, representation candidates, enabled model names, fixed parameters, and tunable parameter grids. Tuning iterates every configured representation and model, selecting the newest run that contains each representation:
 
 ```bash
 python -m src.models.tune \
   --run-dir latest \
-  --representation tfidf \
+  --runs-dir artifacts/preprocessing \
   --config config/models.yaml \
-  --output artifacts/evaluation/tuning.json
+  --output artifacts/evaluation/tuning-all.json
 ```
 
-The preprocessing pipeline remains a separate artifact-producing stage because representations have different costs. Generate the requested representation first, then pass its run and canonical name to train, tune, or evaluate. All model commands consume the same validated handoff loader, so sparse and dense representations use the same model boundary.
+Results are organized as `representation → model → target → hyperparameters and metrics`. Missing or incomplete representation artifacts are recorded as `status: skipped` with a reason; tuning never falls back to TF-IDF. Use `--representation tfidf` to run one candidate only.
+
+The preprocessing pipeline remains a separate artifact-producing stage because representations have different costs. Generate representations first, then tune existing artifacts. All model commands consume the same validated handoff loader, so sparse and dense representations use the same model boundary.
 
 Training, evaluation, and tuning now all use `load_experiment_data`; no model command reads representation files directly.

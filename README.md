@@ -29,6 +29,20 @@ python -m src.preprocessing \
 
 The first run downloads the configured Hugging Face model into the standard local cache. BERT uses the cleaned `essay_clean` text, subword tokenization, non-overlapping chunks when needed, masked token mean pooling, and mean pooling across chunks. It is a frozen feature extractor: no target labels, fine-tuning, regression head, or model weights are written to project artifacts.
 
+## Tune all configured representations
+
+After generating the supported preprocessing artifacts, run the configured model grids across every available representation:
+
+```bash
+python -m src.models.tune \
+--run-dir latest \
+--runs-dir artifacts/preprocessing \
+--config config/models.yaml \
+--output artifacts/evaluation/tuning-all.json
+```
+
+Results are grouped by representation, model, target, and hyperparameter configuration. Missing representation artifacts are reported as skipped; tuning never regenerates or substitutes them. See [model-team handoff](docs/model-handoff.md).
+
 To build the six dense essay↔prompt relationship features:
 
 ```bash
