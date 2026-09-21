@@ -13,9 +13,9 @@ import scipy
 import sklearn
 from scipy import sparse
 
-from .data.cleaning import MARKERS, clean_dataset, marker_inventory
-from .data.validation import file_hashes, load_datasets, validate_datasets
-from .representations import build_representation
+from ..data.cleaning import MARKERS, clean_dataset, marker_inventory
+from ..data.validation import file_hashes, load_datasets, validate_datasets
+from ..representations import build_representation
 
 
 def _write_clean_datasets(run_dir: Path, datasets: dict[str, pd.DataFrame]) -> None:
@@ -152,7 +152,3 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     print(run(args.data_dir, args.output_dir, args.representation))
-
-
-if __name__ == "__main__":
-    main()

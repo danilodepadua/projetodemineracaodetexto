@@ -7,7 +7,7 @@ Reproducible preprocessing for the essay-scoring competition. PR0 migrates the l
 Open the repository in the devcontainer, then run:
 
 ```bash
-python -m src.preprocess \
+python -m src.preprocessing \
   --data-dir data/raw \
   --output-dir artifacts/preprocessing \
   --representation all
