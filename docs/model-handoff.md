@@ -51,3 +51,19 @@ X_test = data.X_test
 Model code must not assume a specific feature dimension, scaling policy, tokenizer, vocabulary, or serialization format. Sparse matrices remain sparse. Combine representations explicitly with `scipy.sparse.hstack` for compatible sparse blocks, `numpy.hstack` for dense blocks, or an intentional sparse/dense conversion at the small-block boundary.
 
 The compatibility input `word2vec` remains accepted for older commands, but new manifests and documentation use `word2vec_cbow` and `word2vec_skipgram`.
+
+## Model configuration and tuning
+
+`config/models.yaml` is the model-team source of truth for the four targets, enabled model names, fixed parameters, and tunable parameter grids. Tuning now iterates the configured `models` mapping rather than a second hardcoded model list:
+
+```bash
+python -m src.models.tune \
+  --run-dir latest \
+  --representation tfidf \
+  --config config/models.yaml \
+  --output artifacts/evaluation/tuning.json
+```
+
+The preprocessing pipeline remains a separate artifact-producing stage because representations have different costs. Generate the requested representation first, then pass its run and canonical name to train, tune, or evaluate. All model commands consume the same validated handoff loader, so sparse and dense representations use the same model boundary.
+
+Training, evaluation, and tuning now all use `load_experiment_data`; no model command reads representation files directly.
