@@ -1,6 +1,6 @@
 # Complete pipeline guide
 
-`src.preprocessing` is the PR0 package for repeatable data validation, cleaning, and traditional text representations. It does not train models or create competition submissions.
+`src.preprocessing` provides repeatable data validation, cleaning, and traditional text representations. It does not train models or create competition submissions.
 
 ## 1. Prepare the environment
 
@@ -37,7 +37,7 @@ python -m src.preprocessing \
   --representation all
 ```
 
-Use `--representation tf` or `--representation tfidf` to build one representation. Every execution creates `artifacts/preprocessing/run-<UTC timestamp>/` and leaves the input files unchanged.
+Use `--representation bow`, `--representation tf`, or `--representation tfidf` to build one representation. `--representation all` builds all three after cleaning once. Every execution creates `artifacts/preprocessing/run-<UTC timestamp>/` and leaves the input files unchanged.
 
 ## 4. Understand the transformations
 
@@ -51,7 +51,13 @@ Every representation uses `essay_clean` with a strict boundary:
 fit(train) → transform(valid) → transform(test)
 ```
 
-TF-IDF preserves notebook lexical parameters: `lowercase=False`, `strip_accents=None`, `stop_words=None`, `ngram_range=(1, 2)`, and `min_df=2`. TF is the approved `CountVectorizer` addition with the same lexical parameters; it is not notebook-equivalent behavior.
+All three representations share `lowercase=False`, `strip_accents=None`, `stop_words=None`, `ngram_range=(1, 2)`, and `min_df=2`.
+
+- **BoW** uses raw `CountVectorizer` document-term counts.
+- **TF** uses the same counts with L2 row normalization and no IDF weighting (`use_idf=False`). The previous PR0 `tf` implementation produced raw counts; that behavior is now named BoW rather than silently retained as TF.
+- **TF-IDF** applies term frequency multiplied by inverse document frequency. It preserves the legacy notebook parameters and learns vocabulary and IDF statistics from train only.
+
+Every representation follows `fit(train) → transform(valid) → transform(test)`; validation and test text never expand the vocabulary or alter learned weights.
 
 ## 5. Inspect the generated run
 
@@ -60,7 +66,17 @@ run-<timestamp>/
 ├── train_clean.csv
 ├── valid_clean.csv
 ├── test_clean.csv
-├── tf/ or tfidf/
+├── bow/
+│   ├── X_train.npz
+│   ├── X_valid.npz
+│   ├── X_test.npz
+│   └── vectorizer.joblib
+├── tf/
+│   ├── X_train.npz
+│   ├── X_valid.npz
+│   ├── X_test.npz
+│   └── vectorizer.joblib
+├── tfidf/
 │   ├── X_train.npz
 │   ├── X_valid.npz
 │   ├── X_test.npz
@@ -72,11 +88,11 @@ run-<timestamp>/
 └── manifest.json
 ```
 
-`manifest.json` records input hashes, row counts, marker definitions, vectorizer parameters, feature dimensions, shapes, and runtime versions. CSV and matrix round trips are checked while writing.
+`manifest.json` records input hashes, row counts, marker definitions, representation names, vectorizer types, configurations, vocabulary sizes, feature dimensions, split shapes, artifact paths, and runtime versions. Matrices remain sparse and CSV/matrix round trips are checked while writing.
 
 ## 6. Legacy model commands
 
-Model scripts live in `src.models` and use the existing flat legacy artifacts in `data/`; they do not yet consume timestamped PR0 runs. Keep this workflow separate until a later representation/model integration PR:
+Model scripts live in `src.models` and are outside this representation PR. The preprocessing run is the stable boundary that supplies cleaned datasets, sparse matrices, fitted vectorizer state, and manifest metadata to later model work:
 
 ```bash
 python -m src.models.train --help

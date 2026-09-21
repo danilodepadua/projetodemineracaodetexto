@@ -43,8 +43,20 @@ def test_run_writes_clean_data_representations_and_manifest(tmp_path, monkeypatc
     manifest = json.loads((run_dir / "manifest.json").read_text())
 
     assert (run_dir / "train_clean.csv").is_file()
-    assert (run_dir / "tfidf" / "vectorizer.joblib").is_file()
-    assert (run_dir / "tf" / "X_test.npz").is_file()
+    for name in ("bow", "tf", "tfidf"):
+        assert (run_dir / name / "vectorizer.joblib").is_file()
+        assert (run_dir / name / "X_train.npz").is_file()
+        assert (run_dir / name / "X_valid.npz").is_file()
+        assert (run_dir / name / "X_test.npz").is_file()
+
+        metadata = manifest["representations"][name]
+        assert metadata["name"] == name
+        assert metadata["vectorizer_type"]
+        assert metadata["configuration"]
+        assert metadata["vocabulary_size"] == metadata["feature_count"]
+        assert metadata["matrix_shapes"]["train"][0] == 2
+        assert metadata["artifact_paths"]["vectorizer"]
+
     assert manifest["representations"]["tfidf"]["shapes"]["train"][0] == 2
     assert manifest["representations"]["tfidf"]["feature_count"] > 0
     assert manifest["input_hashes"]["train.csv"]
