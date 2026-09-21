@@ -14,7 +14,7 @@ python -m pip install -r requirements.txt
 python -m pytest
 ```
 
-The suite contains unit tests for cleaning, validation, train-only representation fitting, Word2Vec tokenization/training/pooling/reproducibility, frozen BERT chunking/pooling/device/shape/reproducibility, serialization, and end-to-end artifact generation. BERT unit tests use fake tokenizer/model fixtures and do not download network weights.
+The suite contains unit tests for cleaning, validation, train-only representation fitting, Word2Vec tokenization/training/pooling/reproducibility, frozen BERT chunking/pooling/device/shape/reproducibility, serialization, the canonical representation catalog, native sparse/dense loading, row alignment, loader failures, handoff smoke behavior, and end-to-end artifact generation. BERT unit tests use fake tokenizer/model fixtures and do not download network weights.
 
 ## Run focused tests
 
@@ -24,6 +24,7 @@ python -m pytest tests/test_validation.py
 python -m pytest tests/test_pipeline.py
 python -m pytest tests/test_word2vec.py
 python -m pytest tests/test_bert.py
+python -m pytest tests/test_representation_contract.py
 ```
 
 ## Run notebook-regression checks
@@ -54,6 +55,8 @@ data/X_test_tfidf.npz
 A warning about loading the legacy vectorizer with a newer scikit-learn version is expected during this compatibility comparison.
 
 ## Run quality checks
+
+All quality commands below run inside the repository Dev Container. Host-only checks are not accepted. A clean-room rebuild was not repeated in this session; report it as N/A unless the container is recreated before handoff.
 
 ```bash
 python -m pip check

@@ -8,6 +8,7 @@ import pandas as pd
 from ._common import Representation
 from .bert import BertConfig, build_bert
 from .bow import build_bow
+from .catalog import canonicalize_representation
 from .essay_prompt import build_essay_prompt
 from .structural import build_structural
 from .tf import build_tf
@@ -30,35 +31,36 @@ def build_representation(
     word2vec_config: Word2VecConfig | None = None,
     bert_config: BertConfig | None = None,
 ) -> Representation:
-    """Build a named representation for text iterables or cleaned datasets."""
-    if name == "bert":
+    """Build a canonical representation for text or cleaned datasets."""
+    canonical_name = canonicalize_representation(name, word2vec_architecture)
+    if canonical_name == "bert":
         if any(
             isinstance(dataset, pd.DataFrame)
             for dataset in (train_texts, valid_texts, test_texts)
         ):
             raise TypeError("bert representation requires cleaned essay text iterables")
         return build_bert(train_texts, valid_texts, test_texts, config=bert_config)
-    if name in {"structural", "essay_prompt"}:
+    if canonical_name in {"structural", "essay_prompt"}:
         datasets = (train_texts, valid_texts, test_texts)
         if not all(isinstance(dataset, pd.DataFrame) for dataset in datasets):
-            raise TypeError(f"{name} representation requires cleaned DataFrames")
+            raise TypeError(
+                f"{canonical_name} representation requires cleaned DataFrames"
+            )
         typed_datasets = tuple(cast(pd.DataFrame, dataset) for dataset in datasets)
-        if name == "structural":
+        if canonical_name == "structural":
             return build_structural(*typed_datasets)
         return build_essay_prompt(
             *typed_datasets,
             word2vec_config=word2vec_config,
         )
-    if name == "word2vec":
+    if canonical_name in {"word2vec_cbow", "word2vec_skipgram"}:
+        architecture = canonical_name.removeprefix("word2vec_")
         return build_word2vec(
             train_texts,
             valid_texts,
             test_texts,
             config=word2vec_config,
-            architecture=word2vec_architecture,
+            architecture=architecture,
         )
-    try:
-        builder = _BUILDER_BY_NAME[name]
-    except KeyError as error:
-        raise ValueError(f"Unsupported representation: {name}") from error
+    builder = _BUILDER_BY_NAME[canonical_name]
     return builder(train_texts, valid_texts, test_texts)

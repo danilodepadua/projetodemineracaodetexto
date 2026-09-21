@@ -4,6 +4,7 @@ import argparse
 import json
 import platform
 from datetime import UTC, datetime
+from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
@@ -18,6 +19,10 @@ from ..data.cleaning import MARKERS, clean_dataset, marker_inventory
 from ..data.validation import file_hashes, load_datasets, validate_datasets
 from ..representations import build_representation
 from ..representations.bert import BertConfig
+from ..representations.catalog import (
+    REPRESENTATION_CATALOG,
+    canonicalize_representation,
+)
 
 
 def _write_clean_datasets(run_dir: Path, datasets: dict[str, pd.DataFrame]) -> None:
@@ -62,20 +67,13 @@ def _write_representation(
     bert_model: str = BertConfig().model_name,
     bert_device: str = "auto",
     bert_batch_size: int = 4,
+    artifact_name: str | None = None,
 ) -> dict[str, Any]:
-    """Build, persist, and describe one train-fitted representation."""
+    """Build, persist, and describe one canonical representation."""
     if name in {"structural", "essay_prompt"}:
-        inputs = (
-            datasets["train"],
-            datasets["valid"],
-            datasets["test"],
-        )
+        inputs = (datasets["train"], datasets["valid"], datasets["test"])
     else:
-        inputs = (
-            _texts(datasets["train"]),
-            _texts(datasets["valid"]),
-            _texts(datasets["test"]),
-        )
+        inputs = tuple(_texts(datasets[split]) for split in ("train", "valid", "test"))
     built = build_representation(
         name,
         *inputs,
@@ -86,10 +84,13 @@ def _write_representation(
             batch_size=bert_batch_size,
         ),
     )
-    representation_dir = run_dir / name
+    artifact_name = artifact_name or name
+    artifact_prefix = Path(artifact_name)
+    representation_dir = run_dir / artifact_name
     representation_dir.mkdir()
     matrices = {"train": built.train, "valid": built.valid, "test": built.test}
     artifact_paths: dict[str, str] = {}
+    artifact_hashes: dict[str, str] = {}
 
     for split, matrix in matrices.items():
         if sparse.issparse(matrix):
@@ -102,101 +103,99 @@ def _write_representation(
             reloaded = np.load(path)
         if _matrix_shape(reloaded) != _matrix_shape(matrix):
             raise AssertionError(f"Serialized {name} {split} matrix shape changed")
-        artifact_paths[f"X_{split}"] = str(Path(name) / path.name)
+        key = f"X_{split}"
+        artifact_paths[key] = str(artifact_prefix / path.name)
+        artifact_hashes[key] = sha256(path.read_bytes()).hexdigest()
 
     shapes = {split: list(_matrix_shape(matrix)) for split, matrix in matrices.items()}
+    storage = "sparse" if sparse.issparse(built.train) else "dense"
+    metadata = dict(built.metadata or {})
+    metadata.update(
+        {
+            "name": name,
+            "family": REPRESENTATION_CATALOG[name].family,
+            "storage": storage,
+            "format": REPRESENTATION_CATALOG[name].matrix_format,
+            "dtype": str(built.train.dtype),
+            "feature_dimension": int(_matrix_shape(built.train)[1]),
+            "shapes": shapes,
+            "matrix_shapes": shapes,
+            "artifact_paths": artifact_paths,
+            "artifact_hashes": artifact_hashes,
+        }
+    )
+
     if name == "bert":
-        metadata = dict(built.metadata or {})
-        metadata.update(
-            {
-                "name": name,
-                "matrix_shapes": shapes,
-                "artifact_paths": artifact_paths,
-            }
-        )
         return metadata
 
-    if name == "word2vec":
+    if name.startswith("word2vec_"):
         model_path = representation_dir / "model.model"
         built.vectorizer.save(str(model_path))
-        metadata = dict(built.metadata or {})
         metadata.update(
             {
-                "name": name,
                 "model_type": type(built.vectorizer).__name__,
-                "model_artifact": str(Path(name) / model_path.name),
-                "matrix_shapes": shapes,
+                "model_artifact": str(artifact_prefix / model_path.name),
                 "artifact_paths": {
                     **artifact_paths,
-                    "model": str(Path(name) / model_path.name),
+                    "model": str(artifact_prefix / model_path.name),
+                },
+                "artifact_hashes": {
+                    **artifact_hashes,
+                    "model": sha256(model_path.read_bytes()).hexdigest(),
                 },
             }
         )
         return metadata
 
     if name in {"structural", "essay_prompt"}:
-        metadata = dict(built.metadata or {})
         feature_names_path = representation_dir / "feature_names.json"
         feature_names_path.write_text(
             json.dumps(metadata["feature_names"], ensure_ascii=False, indent=2),
             encoding="utf-8",
         )
-        if name == "structural":
-            metadata.update(
-                {
-                    "name": name,
-                    "matrix_shapes": shapes,
-                    "artifact_paths": {
-                        **artifact_paths,
-                        "feature_names": str(Path(name) / feature_names_path.name),
-                    },
-                }
-            )
-            return metadata
-
-        state_paths = {
-            "tfidf_vectorizer": representation_dir / "tfidf_vectorizer.joblib",
-            "word2vec_cbow": representation_dir / "word2vec_cbow.model",
-            "word2vec_skipgram": representation_dir / "word2vec_skipgram.model",
-        }
-        joblib.dump(built.vectorizer["tfidf"], state_paths["tfidf_vectorizer"])
-        built.vectorizer["word2vec_cbow"].save(str(state_paths["word2vec_cbow"]))
-        built.vectorizer["word2vec_skipgram"].save(
-            str(state_paths["word2vec_skipgram"])
+        metadata["artifact_paths"]["feature_names"] = str(
+            artifact_prefix / feature_names_path.name
         )
-        state_artifact_paths = {
-            key: str(Path(name) / path.name) for key, path in state_paths.items()
-        }
-        metadata.update(
-            {
-                "name": name,
-                "matrix_shapes": shapes,
-                "artifact_paths": {
-                    **artifact_paths,
-                    "feature_names": str(Path(name) / feature_names_path.name),
-                    **state_artifact_paths,
-                },
+        metadata["artifact_hashes"]["feature_names"] = sha256(
+            feature_names_path.read_bytes()
+        ).hexdigest()
+        if name == "essay_prompt":
+            state_paths = {
+                "tfidf_vectorizer": representation_dir / "tfidf_vectorizer.joblib",
+                "word2vec_cbow": representation_dir / "word2vec_cbow.model",
+                "word2vec_skipgram": representation_dir / "word2vec_skipgram.model",
             }
-        )
+            joblib.dump(built.vectorizer["tfidf"], state_paths["tfidf_vectorizer"])
+            built.vectorizer["word2vec_cbow"].save(str(state_paths["word2vec_cbow"]))
+            built.vectorizer["word2vec_skipgram"].save(
+                str(state_paths["word2vec_skipgram"])
+            )
+            for key, path in state_paths.items():
+                metadata["artifact_paths"][key] = str(artifact_prefix / path.name)
+                metadata["artifact_hashes"][key] = sha256(path.read_bytes()).hexdigest()
         return metadata
 
     vectorizer_path = representation_dir / "vectorizer.joblib"
     joblib.dump(built.vectorizer, vectorizer_path)
     parameters = built.vectorizer.get_params()
-    return {
-        "name": name,
-        "vectorizer_type": type(built.vectorizer).__name__,
-        "configuration": parameters,
-        "parameters": parameters,
-        "vocabulary_size": _matrix_shape(built.train)[1],
-        "feature_count": _matrix_shape(built.train)[1],
-        "shapes": shapes,
-        "matrix_shapes": shapes,
-        "artifact_paths": {
-            **artifact_paths,
-            "vectorizer": str(Path(name) / vectorizer_path.name),
-        },
-    }
+    metadata.update(
+        {
+            "vectorizer_type": type(built.vectorizer).__name__,
+            "configuration": parameters,
+            "parameters": parameters,
+            "vocabulary_size": int(_matrix_shape(built.train)[1]),
+            "feature_count": int(_matrix_shape(built.train)[1]),
+            "artifact_paths": {
+                **metadata["artifact_paths"],
+                "vectorizer": str(artifact_prefix / vectorizer_path.name),
+            },
+            "artifact_hashes": {
+                **metadata["artifact_hashes"],
+                "vectorizer": sha256(vectorizer_path.read_bytes()).hexdigest(),
+            },
+        }
+    )
+    return metadata
 
 
 def run(
@@ -221,10 +220,23 @@ def run(
     _write_clean_datasets(run_dir, cleaned_datasets)
     _write_reports(reports_dir, datasets, diagnostics, duplicates)
 
+    row_ids_dir = run_dir / "row_ids"
+    row_ids_dir.mkdir()
+    row_alignment: dict[str, dict[str, Any]] = {}
+    for split, dataset in cleaned_datasets.items():
+        ids = [str(value) for value in dataset["id"]]
+        ids_path = row_ids_dir / f"{split}.json"
+        ids_path.write_text(json.dumps(ids, ensure_ascii=False), encoding="utf-8")
+        row_alignment[split] = {
+            "path": str(Path("row_ids") / ids_path.name),
+            "count": len(ids),
+            "sha256": sha256("\\n".join(ids).encode("utf-8")).hexdigest(),
+        }
+
     representation_names = (
         ["bow", "tf", "tfidf", "structural"]
         if representation == "all"
-        else [representation]
+        else [canonicalize_representation(representation, word2vec_architecture)]
     )
     representations = {
         name: _write_representation(
@@ -235,9 +247,13 @@ def run(
             bert_model=bert_model,
             bert_device=bert_device,
             bert_batch_size=bert_batch_size,
+            artifact_name=("word2vec" if representation == "word2vec" else None),
         )
         for name in representation_names
     }
+    if representation == "word2vec":
+        legacy_name = canonicalize_representation(representation, word2vec_architecture)
+        representations["word2vec"] = representations.pop(legacy_name)
     manifest = {
         "input_hashes": hashes,
         "row_counts": {
@@ -245,7 +261,16 @@ def run(
         },
         "documented_markers": MARKERS,
         "clean_text_column": "essay_clean",
+        "row_alignment": row_alignment,
         "representations": representations,
+        "representation_catalog": {
+            name: {
+                "family": spec.family,
+                "storage": spec.storage,
+                "format": spec.matrix_format,
+            }
+            for name, spec in REPRESENTATION_CATALOG.items()
+        },
         "python": platform.python_version(),
         "pandas": pd.__version__,
         "scipy": scipy.__version__,
@@ -281,6 +306,8 @@ def parse_args() -> argparse.Namespace:
             "bow",
             "tf",
             "tfidf",
+            "word2vec_cbow",
+            "word2vec_skipgram",
             "word2vec",
             "structural",
             "essay_prompt",
@@ -289,15 +316,18 @@ def parse_args() -> argparse.Namespace:
         ],
         default="all",
         help=(
-            "Representation to build (default: all; excludes Word2Vec and BERT; "
-            "BERT inference is explicit)."
+            "Representation to build (default: all; builds BoW, TF, TF-IDF, and "
+            "structural; expensive representations are explicit)."
         ),
     )
     parser.add_argument(
         "--word2vec-architecture",
         choices=["cbow", "skipgram"],
         default="cbow",
-        help="Word2Vec architecture when --representation word2vec is selected.",
+        help=(
+            "Word2Vec architecture for legacy --representation word2vec; canonical "
+            "names are word2vec_cbow and word2vec_skipgram."
+        ),
     )
     parser.add_argument(
         "--bert-model",

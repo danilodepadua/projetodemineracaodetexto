@@ -36,9 +36,30 @@ def fit_and_transform(
     train_texts: Iterable[str],
     valid_texts: Iterable[str],
     test_texts: Iterable[str],
+    name: str | None = None,
+    family: str | None = None,
 ) -> Representation:
     """Fit on train texts and transform validation and test texts."""
-    train = csr_matrix(vectorizer.fit_transform(train_texts))
-    valid = csr_matrix(vectorizer.transform(valid_texts))
-    test = csr_matrix(vectorizer.transform(test_texts))
-    return Representation(vectorizer=vectorizer, train=train, valid=valid, test=test)
+    train: Any = csr_matrix(vectorizer.fit_transform(train_texts))
+    valid: Any = csr_matrix(vectorizer.transform(valid_texts))
+    test: Any = csr_matrix(vectorizer.transform(test_texts))
+    metadata: dict[str, Any] = {
+        "name": name,
+        "family": family,
+        "storage": "sparse",
+        "format": "npz",
+        "dtype": str(train.dtype),
+        "matrix_shapes": {
+            "train": list(train.shape),
+            "valid": list(valid.shape),
+            "test": list(test.shape),
+        },
+        "feature_dimension": int(train.shape[1]),
+    }
+    return Representation(
+        vectorizer=vectorizer,
+        train=train,
+        valid=valid,
+        test=test,
+        metadata=metadata,
+    )

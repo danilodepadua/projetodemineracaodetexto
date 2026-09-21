@@ -37,20 +37,18 @@ python -m src.preprocessing \
   --representation all
 ```
 
-Use `--representation bow`, `--representation tf`, `--representation tfidf`, `--representation structural`, `--representation essay_prompt`, or `--representation bert` to build one representation. Structural features are inexpensive and require no fitting. Word2Vec, essay-prompt, and BERT features are explicit so their training or inference costs are predictable:
+Use canonical `--representation bow`, `--representation tf`, `--representation tfidf`, `--representation word2vec_cbow`, `--representation word2vec_skipgram`, `--representation structural`, `--representation essay_prompt`, or `--representation bert` to build one representation. Structural features are inexpensive and require no fitting. Word2Vec, essay-prompt, and BERT features are explicit so their training or inference costs are predictable:
 
 ```bash
 python -m src.preprocessing \
   --data-dir data/raw \
   --output-dir artifacts/preprocessing \
-  --representation word2vec \
-  --word2vec-architecture cbow
+  --representation word2vec_cbow
 
 python -m src.preprocessing \
   --data-dir data/raw \
   --output-dir artifacts/preprocessing \
-  --representation word2vec \
-  --word2vec-architecture skipgram
+  --representation word2vec_skipgram
 ```
 
 `--representation essay_prompt` builds six dense relationship features and internally fits TF-IDF plus CBOW and Skip-Gram Word2Vec models on train essays only:
@@ -74,7 +72,7 @@ python -m src.preprocessing \
   --bert-batch-size 4
 ```
 
-`--representation all` builds BoW, TF, TF-IDF, and structural features after cleaning once; it intentionally excludes the more expensive Word2Vec, essay-prompt, and BERT features. Every execution creates `artifacts/preprocessing/run-<UTC timestamp>/` and leaves the input files unchanged.
+`--representation all` builds BoW, TF, TF-IDF, and structural features after cleaning once; it intentionally excludes the more expensive Word2Vec, essay-prompt, and BERT features. Every execution creates `artifacts/preprocessing/run-<UTC timestamp>/`, writes row-ID alignment records and one manifest, and leaves the input files unchanged.
 
 ## 4. Understand the transformations
 
@@ -122,7 +120,12 @@ run-<timestamp>/
 │   ├── X_valid.npz
 │   ├── X_test.npz
 │   └── vectorizer.joblib
-├── word2vec/
+├── word2vec_cbow/
+│   ├── X_train.npy
+│   ├── X_valid.npy
+│   ├── X_test.npy
+│   └── model.model
+├── word2vec_skipgram/
 │   ├── X_train.npy
 │   ├── X_valid.npy
 │   ├── X_test.npy
@@ -144,6 +147,10 @@ run-<timestamp>/
 │   ├── tfidf_vectorizer.joblib
 │   ├── word2vec_cbow.model
 │   └── word2vec_skipgram.model
+├── row_ids/
+│   ├── train.json
+│   ├── valid.json
+│   └── test.json
 ├── reports/
 │   ├── validation_diagnostics.csv
 │   ├── duplicate_essays.csv
@@ -151,7 +158,7 @@ run-<timestamp>/
 └── manifest.json
 ```
 
-`manifest.json` records input hashes, row counts, marker definitions, representation names, configurations, feature definitions, split shapes, artifact paths, and runtime versions. BoW/TF/TF-IDF matrices remain sparse and use `.npz`; Word2Vec, structural, essay-prompt, and BERT matrices are dense `.npy` arrays. Structural and essay-prompt artifacts store ordered `feature_names.json`. Essay-prompt metadata records train-only TF-IDF configuration, train-only CBOW/Skip-Gram configuration, tokenization and prompt-cleaning strategies, feature definitions, shapes, artifact paths, and zero-norm comparison counts. BERT artifacts contain only the three embedding arrays; pretrained weights remain in the standard Hugging Face cache and are identified through manifest metadata rather than copied into the run.
+`manifest.json` records input hashes, row counts, marker definitions, canonical representation names, family/storage/dtype/shape metadata, configurations, feature definitions, row-ID alignment, artifact hashes, artifact paths, and runtime versions. BoW/TF/TF-IDF matrices remain sparse and use `.npz`; Word2Vec, structural, essay-prompt, and BERT matrices are dense `.npy` arrays. Structural and essay-prompt artifacts store ordered `feature_names.json`. Essay-prompt metadata records train-only TF-IDF configuration, train-only CBOW/Skip-Gram configuration, tokenization and prompt-cleaning strategies, feature definitions, shapes, artifact paths, and zero-norm comparison counts. BERT artifacts contain only the three embedding arrays; pretrained weights remain in the standard Hugging Face cache and are identified through manifest metadata rather than copied into the run.
 
 ## 6. Legacy model commands
 

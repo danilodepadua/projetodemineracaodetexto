@@ -14,4 +14,11 @@ def build_tf(
 ) -> Representation:
     """Build L2-normalized term-frequency matrices without IDF weighting."""
     vectorizer = TfidfVectorizer(use_idf=False, norm="l2", **LEXICAL_CONFIG)
-    return fit_and_transform(vectorizer, train_texts, valid_texts, test_texts)
+    return fit_and_transform(
+        vectorizer,
+        train_texts,
+        valid_texts,
+        test_texts,
+        name="tf",
+        family="frequency",
+    )
