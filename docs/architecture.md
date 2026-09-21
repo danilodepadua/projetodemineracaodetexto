@@ -1,21 +1,22 @@
-# Representation pipeline architecture
+# Architecture
 
 ```mermaid
 flowchart TD
     raw[Raw data] --> validation[Validation]
     validation --> cleaning[Cleaning]
-    cleaning --> frequency[Frequency\nBoW / TF / TF-IDF]
-    cleaning --> semantic[Semantic\nWord2Vec / BERT]
-    cleaning --> explicit[Explicit\nStructural / Essay-Prompt]
-    frequency --> artifacts[Serialized representations]
-    semantic --> artifacts
-    explicit --> artifacts
-    artifacts --> loader[Validated loading contract]
-    loader --> models[Model experiments]
+    cleaning --> representations[Representation builders]
+    representations --> runs[Timestamped preprocessing runs]
+    runs --> loader[load_experiment_data]
+    loader --> tuning[Tuning]
+    loader --> training[Representation-aware training]
+    training --> models[Model bundles plus metadata]
+    models --> evaluation[Compatibility-checked evaluation]
 ```
 
-Validation owns input schemas, split boundaries, target checks, and dataset hashes. Cleaning owns canonical `essay_clean` text and cleaning metadata. Representation builders fit only on training text when fitting is required; they remain independent of target values.
+Validation owns input schemas, split boundaries, target checks, and input hashes. Cleaning owns canonical `essay_clean` text and cleaning metadata. Representation builders fit only on training text when fitting is required and write native sparse/dense artifacts plus a manifest under one timestamped run.
 
-Each run contains cleaned split CSVs, representation directories, split-ID alignment records, reports, and one manifest. The manifest indexes every representation, its family, native sparse/dense storage, shape, dtype, feature dimension, configuration, artifacts, and provenance.
+The loader is the model boundary. It validates representation declarations, shapes, dtypes, artifact hashes, split IDs, and target alignment before returning native matrices and independent target mappings. Model code therefore does not know how cleaning, tokenization, fitting, pooling, or serialization works.
 
-The loading contract is the model boundary. It validates all split rows, shared feature dimensions, metadata, artifact hashes when present, and exact ID order before returning native matrices plus independent target arrays. Model code therefore does not know how cleaning, tokenization, fitting, pooling, or serialization works.
+Training writes `artifacts/models/<representation>/<model>/` with one target model per file and `metadata.json` containing the source run name, representation, model, parameters, and targets. Evaluation validates that metadata against the requested preprocessing run before prediction. This prevents a model trained on one representation from being silently reused for another.
+
+Run discovery is centralized in `src.models.data`: `latest` for training/evaluation selects the newest run containing the requested representation, while tuning applies the same lookup independently for each candidate. All serialized paths required for reload are relative to their artifact/run directory.

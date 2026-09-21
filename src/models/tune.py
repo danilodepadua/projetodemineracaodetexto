@@ -70,14 +70,14 @@ def tune_representations(
             results[name] = {
                 "status": "skipped",
                 "reason": str(error),
-                "run_dir": str(selected_run),
+                "run_dir": selected_run.name,
                 "models": {},
             }
             continue
 
         results[name] = {
             "status": "ran",
-            "run_dir": str(selected_run),
+            "run_dir": selected_run.name,
             "models": {
                 model_name: tune_model(
                     model_name,

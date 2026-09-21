@@ -1,74 +1,79 @@
 # Testing
 
-Run commands from the repository root inside the devcontainer.
+Run checks from the repository root with the selected environment interpreter. The test suite does not require competition data for its unit and fixture-based integration tests; `test_legacy_regression.py` skips unless local reference artifacts exist.
 
-## Install dependencies
+## Install and dependency check
 
 ```bash
 python -m pip install -r requirements.txt
-```
-
-## Run the complete suite
-
-```bash
-python -m pytest
-```
-
-The suite contains unit tests for cleaning, validation, train-only representation fitting, Word2Vec tokenization/training/pooling/reproducibility, frozen BERT chunking/pooling/device/shape/reproducibility, serialization, the canonical representation catalog, native sparse/dense loading, row alignment, loader failures, handoff smoke behavior, and end-to-end artifact generation. BERT unit tests use fake tokenizer/model fixtures and do not download network weights.
-
-## Run focused tests
-
-```bash
-python -m pytest tests/test_preprocessing.py
-python -m pytest tests/test_validation.py
-python -m pytest tests/test_pipeline.py
-python -m pytest tests/test_word2vec.py
-python -m pytest tests/test_bert.py
-python -m pytest tests/test_representation_contract.py
-```
-
-## Run notebook-regression checks
-
-The legacy comparison test verifies cleaned text, marker counts, TF-IDF vocabulary, matrix shapes, sparsity, and values against the copied reference inputs and existing legacy artifacts. Word2Vec tests use small controlled corpora to verify train-only vocabulary, CBOW/Skip-Gram mapping, mean pooling, OOV zero vectors, native model/NumPy serialization, and deterministic workers=1 runs. BERT tests validate masked pooling and non-overlapping special-token-aware chunks independently, then use mocked AutoTokenizer/AutoModel inference to verify frozen eval-mode, no-grad, batching, finite dense shapes, and repeatability without external network dependence.
-
-For real-data BERT validation, run the explicit `--representation bert` command from [preprocessing](preprocessing.md) inside the Dev Container. The first run may download `neuralmind/bert-base-portuguese-cased`; subsequent runs use the standard Hugging Face cache. Record tokenizer length statistics, actual device, split shapes, chunk counts, finite-value checks, and split execution times. Do not commit the cache, downloaded weights, or generated artifacts.
-
-```bash
-python -m pytest tests/test_legacy_regression.py
-```
-
-It runs only when these local ignored files exist:
-
-```text
-data/raw/train.csv
-data/raw/valid.csv
-data/raw/test.csv
-data/train_limpo.csv
-data/valid_limpo.csv
-data/test_limpo.csv
-data/tfidf_vectorizer.joblib
-data/X_train_tfidf.npz
-data/X_valid_tfidf.npz
-data/X_test_tfidf.npz
-```
-
-A warning about loading the legacy vectorizer with a newer scikit-learn version is expected during this compatibility comparison.
-
-## Run quality checks
-
-All quality commands below run inside the repository Dev Container. Host-only checks are not accepted. A clean-room rebuild was not repeated in this session; report it as N/A unless the container is recreated before handoff.
-
-```bash
 python -m pip check
+```
+
+Expected result: no broken requirements.
+
+## Complete quality suite
+
+```bash
 ruff format --check src tests
 ruff check src tests
 pyright
 python -m pytest
+python -m pip check
+git diff --check
 ```
 
-Apply automatic style fixes before rerunning the checks:
+`requirements.txt` includes runtime, test, Ruff, Pyright, notebook, and representation dependencies, so the same commands work in raw Python, `.venv`, and the Dev Container.
+
+## Focused tests
 
 ```bash
-ruff format src tests
-ruff check --fix src tests
+python -m pytest tests/test_preprocessing.py tests/test_validation.py
+python -m pytest tests/test_pipeline.py tests/test_representation_contract.py
+python -m pytest tests/test_model_data.py tests/test_model_config.py
+python -m pytest tests/test_model_artifacts.py tests/test_cli.py
+python -m pytest tests/test_word2vec.py tests/test_bert.py
 ```
+
+The portable-execution tests cover repository-relative CLI defaults, representation-specific latest resolution, model artifact isolation, metadata portability, mismatch rejection, and module entrypoint help.
+
+## CLI smoke test
+
+```bash
+python -m src.preprocessing --help
+python -m src.models.train --help
+python -m src.models.evaluate --help
+python -m src.models.tune --help
+```
+
+## Data and real pipeline checks
+
+If competition data is available, run the lightweight pipeline and record its run name:
+
+```bash
+python -m src.preprocessing \
+  --data-dir data/raw \
+  --output-dir artifacts/preprocessing \
+  --representation all
+```
+
+Then run tuning and one matching train/evaluate flow from [models.md](models.md). Generate Word2Vec, essay-prompt, or BERT only when validating those representations; never claim a representation passed if it was not generated or loaded.
+
+## Environment matrix
+
+Record `PASS` only after executing the row. Use `N/A — not executed` with a reason otherwise.
+
+| Check | Raw Python 3.12 | Host `.venv` | Fresh Dev Container | Reopen/rebuild |
+| --- | --- | --- | --- | --- |
+| install requirements |  |  | post-create | N/A or result |
+| `pip check` |  |  |  |  |
+| Ruff format/lint |  |  |  |  |
+| Pyright |  |  |  |  |
+| pytest |  |  |  |  |
+| CLI help |  |  |  |  |
+| lightweight preprocessing |  |  |  |  |
+| tuning |  |  |  |  |
+| train/evaluate |  |  |  |  |
+
+## Clean-room rules
+
+Use a temporary Python 3.12 virtual environment for raw-host validation; do not reuse `.venv` or a Dev Container environment. For container validation, rebuild and reopen rather than manually repairing `.venv`. Keep `data/`, `artifacts/`, Hugging Face caches, model binaries, and temporary outputs ignored.
