@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 import joblib
+import numpy as np
 import pandas as pd
 import scipy
 import sklearn
@@ -44,16 +45,19 @@ def _texts(dataset: pd.DataFrame) -> list[str]:
     return [str(text) for text in dataset["essay_clean"]]
 
 
-def _matrix_shape(matrix: sparse.spmatrix) -> tuple[int, int]:
-    """Return a concrete matrix shape for static and runtime checks."""
+def _matrix_shape(matrix: Any) -> tuple[int, int]:
+    """Return a concrete shape for sparse and dense matrices."""
     shape = matrix.shape
     if shape is None:
-        raise ValueError("Sparse matrix shape is unavailable")
+        raise ValueError("Matrix shape is unavailable")
     return shape
 
 
 def _write_representation(
-    run_dir: Path, name: str, datasets: dict[str, pd.DataFrame]
+    run_dir: Path,
+    name: str,
+    datasets: dict[str, pd.DataFrame],
+    word2vec_architecture: str = "cbow",
 ) -> dict[str, Any]:
     """Build, persist, and describe one train-fitted representation."""
     built = build_representation(
@@ -61,20 +65,47 @@ def _write_representation(
         _texts(datasets["train"]),
         _texts(datasets["valid"]),
         _texts(datasets["test"]),
+        word2vec_architecture=word2vec_architecture,
     )
     representation_dir = run_dir / name
     representation_dir.mkdir()
     matrices = {"train": built.train, "valid": built.valid, "test": built.test}
+    artifact_paths: dict[str, str] = {}
 
     for split, matrix in matrices.items():
-        path = representation_dir / f"X_{split}.npz"
-        sparse.save_npz(path, matrix)
-        if _matrix_shape(sparse.load_npz(path)) != _matrix_shape(matrix):
+        if sparse.issparse(matrix):
+            path = representation_dir / f"X_{split}.npz"
+            sparse.save_npz(path, matrix)
+            reloaded = sparse.load_npz(path)
+        else:
+            path = representation_dir / f"X_{split}.npy"
+            np.save(path, matrix)
+            reloaded = np.load(path)
+        if _matrix_shape(reloaded) != _matrix_shape(matrix):
             raise AssertionError(f"Serialized {name} {split} matrix shape changed")
+        artifact_paths[f"X_{split}"] = str(Path(name) / path.name)
+
+    shapes = {split: list(_matrix_shape(matrix)) for split, matrix in matrices.items()}
+    if name == "word2vec":
+        model_path = representation_dir / "model.model"
+        built.vectorizer.save(str(model_path))
+        metadata = dict(built.metadata or {})
+        metadata.update(
+            {
+                "name": name,
+                "model_type": type(built.vectorizer).__name__,
+                "model_artifact": str(Path(name) / model_path.name),
+                "matrix_shapes": shapes,
+                "artifact_paths": {
+                    **artifact_paths,
+                    "model": str(Path(name) / model_path.name),
+                },
+            }
+        )
+        return metadata
 
     vectorizer_path = representation_dir / "vectorizer.joblib"
     joblib.dump(built.vectorizer, vectorizer_path)
-    shapes = {split: list(_matrix_shape(matrix)) for split, matrix in matrices.items()}
     parameters = built.vectorizer.get_params()
     return {
         "name": name,
@@ -86,13 +117,18 @@ def _write_representation(
         "shapes": shapes,
         "matrix_shapes": shapes,
         "artifact_paths": {
-            **{f"X_{split}": str(Path(name) / f"X_{split}.npz") for split in matrices},
-            "vectorizer": str(Path(name) / "vectorizer.joblib"),
+            **artifact_paths,
+            "vectorizer": str(Path(name) / vectorizer_path.name),
         },
     }
 
 
-def run(data_dir: Path, output_dir: Path, representation: str = "all") -> Path:
+def run(
+    data_dir: Path,
+    output_dir: Path,
+    representation: str = "all",
+    word2vec_architecture: str = "cbow",
+) -> Path:
     """Validate, clean, represent, and persist the competition datasets."""
     hashes = file_hashes(data_dir)
     datasets, diagnostics, duplicates = validate_datasets(load_datasets(data_dir))
@@ -110,7 +146,12 @@ def run(data_dir: Path, output_dir: Path, representation: str = "all") -> Path:
         ["bow", "tf", "tfidf"] if representation == "all" else [representation]
     )
     representations = {
-        name: _write_representation(run_dir, name, cleaned_datasets)
+        name: _write_representation(
+            run_dir,
+            name,
+            cleaned_datasets,
+            word2vec_architecture=word2vec_architecture,
+        )
         for name in representation_names
     }
     manifest = {
@@ -152,13 +193,26 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--representation",
-        choices=["bow", "tf", "tfidf", "all"],
+        choices=["bow", "tf", "tfidf", "word2vec", "all"],
         default="all",
-        help="Representation to build (default: all).",
+        help="Representation to build (default: all; excludes Word2Vec).",
+    )
+    parser.add_argument(
+        "--word2vec-architecture",
+        choices=["cbow", "skipgram"],
+        default="cbow",
+        help="Word2Vec architecture when --representation word2vec is selected.",
     )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    print(run(args.data_dir, args.output_dir, args.representation))
+    print(
+        run(
+            args.data_dir,
+            args.output_dir,
+            args.representation,
+            args.word2vec_architecture,
+        )
+    )

@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
+import numpy as np
 from scipy.sparse import csr_matrix
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 
@@ -16,16 +17,18 @@ LEXICAL_CONFIG: dict[str, Any] = {
 }
 
 Vectorizer = CountVectorizer | TfidfVectorizer
+Matrix = csr_matrix | np.ndarray
 
 
 @dataclass(frozen=True)
 class Representation:
-    """A fitted vectorizer and its train, validation, and test matrices."""
+    """A fitted representation and its train, validation, and test matrices."""
 
-    vectorizer: Vectorizer
-    train: csr_matrix
-    valid: csr_matrix
-    test: csr_matrix
+    vectorizer: Any
+    train: Any
+    valid: Any
+    test: Any
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 def fit_and_transform(

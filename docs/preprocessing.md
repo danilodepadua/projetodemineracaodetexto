@@ -1,6 +1,6 @@
 # Complete pipeline guide
 
-`src.preprocessing` provides repeatable data validation, cleaning, and traditional text representations. It does not train models or create competition submissions.
+`src.preprocessing` provides repeatable data validation, cleaning, and text representations. BoW, TF, and TF-IDF provide frequency-based lexical features; Word2Vec provides dense distributed semantic embeddings. It does not train downstream models or create competition submissions.
 
 ## 1. Prepare the environment
 
@@ -37,7 +37,23 @@ python -m src.preprocessing \
   --representation all
 ```
 
-Use `--representation bow`, `--representation tf`, or `--representation tfidf` to build one representation. `--representation all` builds all three after cleaning once. Every execution creates `artifacts/preprocessing/run-<UTC timestamp>/` and leaves the input files unchanged.
+Use `--representation bow`, `--representation tf`, or `--representation tfidf` to build one frequency representation. Word2Vec is explicit so its training cost is predictable:
+
+```bash
+python -m src.preprocessing \
+  --data-dir data/raw \
+  --output-dir artifacts/preprocessing \
+  --representation word2vec \
+  --word2vec-architecture cbow
+
+python -m src.preprocessing \
+  --data-dir data/raw \
+  --output-dir artifacts/preprocessing \
+  --representation word2vec \
+  --word2vec-architecture skipgram
+```
+
+`--representation all` builds BoW, TF, and TF-IDF after cleaning once; it excludes Word2Vec. Every execution creates `artifacts/preprocessing/run-<UTC timestamp>/` and leaves the input files unchanged.
 
 ## 4. Understand the transformations
 
@@ -56,6 +72,7 @@ All three representations share `lowercase=False`, `strip_accents=None`, `stop_w
 - **BoW** uses raw `CountVectorizer` document-term counts.
 - **TF** uses the same counts with L2 row normalization and no IDF weighting (`use_idf=False`). The previous PR0 `tf` implementation produced raw counts; that behavior is now named BoW rather than silently retained as TF.
 - **TF-IDF** applies term frequency multiplied by inverse document frequency. It preserves the legacy notebook parameters and learns vocabulary and IDF statistics from train only.
+- **Word2Vec** uses Gensim with explicit CBOW (`sg=0`) or Skip-Gram (`sg=1`) configuration. Tokenization extracts Unicode word tokens from `essay_clean` without lowercasing, accent stripping, stemming, lemmatization, or stopword removal. The model is trained on train tokens only; document vectors use simple mean pooling over known word vectors. OOV tokens are ignored, and documents with no known tokens receive a deterministic zero vector. The default `workers=1` favors reproducibility over throughput; `vector_size`, `window`, `min_count`, `epochs`, and `seed` are recorded in the manifest.
 
 Every representation follows `fit(train) → transform(valid) → transform(test)`; validation and test text never expand the vocabulary or alter learned weights.
 
@@ -81,6 +98,11 @@ run-<timestamp>/
 │   ├── X_valid.npz
 │   ├── X_test.npz
 │   └── vectorizer.joblib
+├── word2vec/
+│   ├── X_train.npy
+│   ├── X_valid.npy
+│   ├── X_test.npy
+│   └── model.model
 ├── reports/
 │   ├── validation_diagnostics.csv
 │   ├── duplicate_essays.csv
@@ -88,11 +110,11 @@ run-<timestamp>/
 └── manifest.json
 ```
 
-`manifest.json` records input hashes, row counts, marker definitions, representation names, vectorizer types, configurations, vocabulary sizes, feature dimensions, split shapes, artifact paths, and runtime versions. Matrices remain sparse and CSV/matrix round trips are checked while writing.
+`manifest.json` records input hashes, row counts, marker definitions, representation names, configurations, vocabulary sizes, split shapes, artifact paths, and runtime versions. BoW/TF/TF-IDF matrices remain sparse and use `.npz`; Word2Vec document embeddings are dense `.npy` arrays, and the native Gensim model is saved alongside them. Word2Vec metadata also records architecture, aggregation, token coverage, and zero-vector document counts.
 
 ## 6. Legacy model commands
 
-Model scripts live in `src.models` and are outside this representation PR. The preprocessing run is the stable boundary that supplies cleaned datasets, sparse matrices, fitted vectorizer state, and manifest metadata to later model work:
+Model scripts live in `src.models` and are outside this representation PR. The preprocessing run is the stable boundary that supplies cleaned datasets, sparse or dense matrices, fitted representation state, and manifest metadata to later model work:
 
 ```bash
 python -m src.models.train --help
