@@ -1,6 +1,6 @@
 # Complete pipeline guide
 
-`src.preprocessing` provides repeatable data validation, cleaning, and text representations. BoW, TF, and TF-IDF are frequency-based; Word2Vec provides dense semantic embeddings; structural provides dense document-level linguistic features. It does not train downstream models or create competition submissions.
+`src.preprocessing` provides repeatable data validation, cleaning, and text representations. BoW, TF, and TF-IDF are frequency-based; Word2Vec provides dense semantic embeddings; structural provides dense document-level linguistic features; essay-prompt provides a small dense representation of essay↔prompt relationships. It does not train downstream models or create competition submissions.
 
 ## 1. Prepare the environment
 
@@ -37,7 +37,7 @@ python -m src.preprocessing \
   --representation all
 ```
 
-Use `--representation bow`, `--representation tf`, `--representation tfidf`, or `--representation structural` to build one representation. Structural features are inexpensive and require no fitting. Word2Vec is explicit so its training cost is predictable:
+Use `--representation bow`, `--representation tf`, `--representation tfidf`, `--representation structural`, or `--representation essay_prompt` to build one representation. Structural features are inexpensive and require no fitting. Word2Vec and essay-prompt features are explicit so their training costs are predictable:
 
 ```bash
 python -m src.preprocessing \
@@ -53,7 +53,16 @@ python -m src.preprocessing \
   --word2vec-architecture skipgram
 ```
 
-`--representation all` builds BoW, TF, TF-IDF, and structural features after cleaning once; it excludes Word2Vec. Every execution creates `artifacts/preprocessing/run-<UTC timestamp>/` and leaves the input files unchanged.
+`--representation essay_prompt` builds six dense relationship features and internally fits TF-IDF plus CBOW and Skip-Gram Word2Vec models on train essays only:
+
+```bash
+python -m src.preprocessing \
+  --data-dir data/raw \
+  --output-dir artifacts/preprocessing \
+  --representation essay_prompt
+```
+
+`--representation all` builds BoW, TF, TF-IDF, and structural features after cleaning once; it excludes Word2Vec and essay-prompt features. Every execution creates `artifacts/preprocessing/run-<UTC timestamp>/` and leaves the input files unchanged.
 
 ## 4. Understand the transformations
 
@@ -74,8 +83,9 @@ BoW, TF, and TF-IDF share `lowercase=False`, `strip_accents=None`, `stop_words=N
 - **TF-IDF** applies term frequency multiplied by inverse document frequency. It preserves the legacy notebook parameters and learns vocabulary and IDF statistics from train only.
 - **Word2Vec** uses Gensim with explicit CBOW (`sg=0`) or Skip-Gram (`sg=1`) configuration. Tokenization extracts Unicode word tokens from `essay_clean` without lowercasing, accent stripping, stemming, lemmatization, or stopword removal. The model is trained on train tokens only; document vectors use simple mean pooling over known word vectors. OOV tokens are ignored, and documents with no known tokens receive a deterministic zero vector. The default `workers=1` favors reproducibility over throughput; `vector_size`, `window`, `min_count`, `epochs`, and `seed` are recorded in the manifest.
 - **Structural** produces a fixed, explicitly ordered dense vector: `character_count`, `word_count`, `sentence_count`, `paragraph_count`, `unique_word_count`, `lexical_diversity`, `average_word_length`, `average_sentence_length_words`, `average_paragraph_length_words`, `punctuation_count`, `comma_count`, `sentence_terminal_count`, `uppercase_ratio`, `digit_count`, and the seven cleaning marker counts. It counts sentences from terminal-punctuation runs with a one-sentence fallback for non-empty text, paragraphs from non-empty lines in canonical `essay_clean`, and tokens with Unicode `\\b\\w+\\b` without lowercasing, accent stripping, stemming, lemmatization, or stopword removal. Empty denominators produce zero. Features are raw and no scaler is fitted.
+- **Essay ↔ Prompt** uses this deterministic feature order: `tfidf_cosine_similarity`, `word2vec_cbow_cosine_similarity`, `word2vec_skipgram_cosine_similarity`, `shared_token_count`, `essay_prompt_token_jaccard`, and `prompt_token_coverage`. Prompts are transformed with `clean_text` in memory; the original `prompt` column is not changed. The first feature uses a TF-IDF vectorizer fit on train `essay_clean` only and transforms both essay and prompt text. The semantic features use separate CBOW and Skip-Gram models fit on train essay tokens only, then mean-pool known tokens for both fields. OOV tokens are ignored; a zero-norm comparison returns `0.0`. Shared-token count uses unique case-preserving Unicode tokens; Jaccard is intersection divided by union; coverage is intersection divided by prompt tokens. Empty denominators produce zero. No target column is read.
 
-Frequency and semantic representations use `fit(train) → transform(valid) → transform(test)`. Structural generation has no fitting step; all split rows are computed independently with the same ordered definitions.
+Frequency, semantic, and essay-prompt fitted components use `fit(train) → transform(valid) → transform(test)`. Structural generation has no fitting step; all split rows are computed independently with the same ordered definitions.
 
 ## 5. Inspect the generated run
 
@@ -109,6 +119,14 @@ run-<timestamp>/
 │   ├── X_valid.npy
 │   ├── X_test.npy
 │   └── feature_names.json
+├── essay_prompt/
+│   ├── X_train.npy
+│   ├── X_valid.npy
+│   ├── X_test.npy
+│   ├── feature_names.json
+│   ├── tfidf_vectorizer.joblib
+│   ├── word2vec_cbow.model
+│   └── word2vec_skipgram.model
 ├── reports/
 │   ├── validation_diagnostics.csv
 │   ├── duplicate_essays.csv
@@ -116,7 +134,7 @@ run-<timestamp>/
 └── manifest.json
 ```
 
-`manifest.json` records input hashes, row counts, marker definitions, representation names, configurations, feature definitions, split shapes, artifact paths, and runtime versions. BoW/TF/TF-IDF matrices remain sparse and use `.npz`; Word2Vec and structural matrices are dense `.npy` arrays. The structural artifact also stores ordered `feature_names.json`; its metadata records feature count, strategies, and `scaling: none`. Word2Vec metadata records architecture, aggregation, token coverage, and zero-vector document counts.
+`manifest.json` records input hashes, row counts, marker definitions, representation names, configurations, feature definitions, split shapes, artifact paths, and runtime versions. BoW/TF/TF-IDF matrices remain sparse and use `.npz`; Word2Vec, structural, and essay-prompt matrices are dense `.npy` arrays. Structural and essay-prompt artifacts store ordered `feature_names.json`. Essay-prompt metadata records train-only TF-IDF configuration, train-only CBOW/Skip-Gram configuration, tokenization and prompt-cleaning strategies, feature definitions, shapes, artifact paths, and zero-norm comparison counts.
 
 ## 6. Legacy model commands
 

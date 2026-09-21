@@ -13,17 +13,27 @@ python -m src.preprocessing \
   --representation all
 ```
 
-The command validates the supplied competition files, cleans every split independently, builds each representation from the cleaned essays, and writes a timestamped artifact run. Select `--representation bow`, `--representation tf`, `--representation tfidf`, `--representation structural`, or `--representation word2vec`; choose Word2Vec's architecture with `--word2vec-architecture cbow` or `--word2vec-architecture skipgram`. `all` builds BoW, TF, TF-IDF, and structural features, while Word2Vec remains explicit. See [preprocessing](docs/preprocessing.md) for representation semantics, artifacts, validation, and reproducibility details.
+The command validates the supplied competition files, cleans every split independently, builds each representation from the cleaned essays, and writes a timestamped artifact run. Select `--representation bow`, `--representation tf`, `--representation tfidf`, `--representation structural`, `--representation essay_prompt`, or `--representation word2vec`; choose Word2Vec's architecture with `--word2vec-architecture cbow` or `--word2vec-architecture skipgram`. `all` builds BoW, TF, TF-IDF, and structural features, while Word2Vec and essay-prompt features remain explicit. See [preprocessing](docs/preprocessing.md) for representation semantics, artifacts, validation, and reproducibility details.
+
+To build the six dense essay↔prompt relationship features:
+
+```bash
+python -m src.preprocessing \
+  --data-dir data/raw \
+  --output-dir artifacts/preprocessing \
+  --representation essay_prompt
+```
 
 ## Representation layers
 
-The project supports three representation families:
+The project supports four representation families:
 
 - **Frequency-based:** BoW, TF, and TF-IDF.
 - **Semantic:** Word2Vec CBOW and Skip-Gram.
 - **Structural / linguistic:** dense document-level features for length, organization, lexical diversity, punctuation, casing, digits, and cleaning markers.
+- **Essay ↔ Prompt:** lexical overlap, train-only TF-IDF cosine similarity, and train-essay-only Word2Vec CBOW/Skip-Gram cosine similarity.
 
-Structural features are raw, deterministic, and unscaled. Word2Vec is a dense distributed semantic representation trained with Gensim. It learns word vectors from training essays only and mean-pools known word vectors into one fixed-size vector per essay. Unknown tokens are ignored; an essay with no known tokens receives a zero vector.
+Structural features are raw, deterministic, and unscaled. Word2Vec is a dense distributed semantic representation trained with Gensim. It learns word vectors from training essays only and mean-pools known word vectors into one fixed-size vector per essay. Unknown tokens are ignored; an essay with no known tokens receives a zero vector. Essay-prompt cosine similarities use the same tokenization on cleaned prompt views, return `0.0` for zero-norm comparisons, and never use target values.
 
 ## Local data layout
 
