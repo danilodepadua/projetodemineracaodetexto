@@ -1,6 +1,6 @@
-# Training and evaluation
+# Legacy training
 
-This guide explains how to train and evaluate the text-mining regression models in this repository. The scripts use cleaned CSV labels and precomputed TF-IDF matrices; their directories and filenames are configured through [.env](../.env.example). Run the commands from the repository root with the project virtual environment.
+This guide covers the pre-existing model scripts, not the PR0 preprocessing pipeline. Generate or inspect preprocessing artifacts through [preprocessing.md](preprocessing.md) first; these scripts still consume the legacy flat cleaned CSV and TF-IDF filenames configured through [.env](../.env.example). Run commands from the repository root with the project virtual environment.
 
 ## Prerequisites
 
@@ -16,19 +16,19 @@ The CSV files must contain the four target columns used by the scripts: `formal_
 Use the default Ridge model with the repository's `data/` directory:
 
 ```bash
-python src/train.py --model ridge
+python -m src.models.train --model ridge
 ```
 
 The available models are `ridge` and `linear_svr`. If `--model` is omitted, training uses `ridge`. If `--data-dir` is omitted, the script reads from `data` relative to the repository root. By default, each model is saved under `artifacts/models/<model>/` as one `.joblib` file per target. To choose another data or output location, pass `--data-dir` or `--output-dir`:
 
 ```bash
-python src/train.py --data-dir /path/to/data --model linear_svr --output-dir /path/to/models
+python -m src.models.train --data-dir /path/to/data --model linear_svr --output-dir /path/to/models
 ```
 
 Model parameters are defined in [config/models.yaml](../config/models.yaml). Edit the `default` value in the selected model's `params` mapping, or pass another YAML file with `--config`:
 
 ```bash
-python src/train.py \
+python -m src.models.train \
   --config config/models.yaml \
   --model linear_svr
 ```
@@ -43,9 +43,13 @@ Continue with evaluation using the same model and data by following the [evaluat
 
 Use the dedicated [tuning guide](tune.md) to compare the supported Ridge and LinearSVR parameter grids before selecting values for training.
 
+## Scope note
+
+PR0 does not train, tune, compare, or select models. The commands below remain available for the existing baseline workflow.
+
 ## Source of truth
 
-- [src/train.py](../src/train.py) defines input validation, model options, target names, and model output paths.
+- [src/models/train.py](../src/models/train.py) defines input validation, model options, target names, and model output paths.
 - [configuration.md](configuration.md) defines the `.env` path and filename settings.
 - [config/models.yaml](../config/models.yaml) defines the targets and fitted model parameters.
 - [requirements.txt](../requirements.txt) defines the Python dependencies.

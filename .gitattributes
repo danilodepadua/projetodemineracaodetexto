@@ -1,0 +1,8 @@
+* text=auto eol=lf
+
+*.py text diff=python
+*.toml text
+*.md text diff=markdown
+*.ipynb binary
+*.joblib binary
+*.npz binary

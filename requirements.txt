@@ -12,3 +12,6 @@ python-dotenv>=1,<2
 # Notebooks and interactive exploration
 jupyterlab>=4,<5
 ipykernel>=6,<8
+pytest>=8,<10
+ruff>=0.11,<1
+pyright>=1.1,<2

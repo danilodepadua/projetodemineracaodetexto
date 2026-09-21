@@ -1,20 +1,39 @@
 # Text Mining
 
-Environment for text analysis and machine learning experiments using the data available in `data/`.
+Reproducible preprocessing for the essay-scoring competition. PR0 migrates the legacy notebooks into Python modules; model training and submission workflows remain separate legacy tooling.
 
-## Start with devcontainer
+## Quick start
 
-You can open it in a devcontainer by clicking here: [![Open in Dev Container](https://img.shields.io/badge/Open%20in-Dev%20Container-blue?logo=visual-studio-code)](https://code.visualstudio.com/docs/devcontainers/containers)
+Open the repository in the devcontainer, then run:
 
-or,
+```bash
+python -m src.preprocessing \
+  --data-dir data/raw \
+  --output-dir artifacts/preprocessing \
+  --representation all
+```
 
-1. Install Docker and the VS Code **Dev Containers** extension.
-2. Open this repository in VS Code.
-3. Run `Dev Containers: Reopen in Container` from the Command Palette.
+The command validates the supplied competition files, cleans every split independently, fits each representation on training essays only, and writes a timestamped artifact run. See [preprocessing](docs/preprocessing.md) for inputs, outputs, validation, and reproducibility details.
 
-When the container is created, the project automatically creates the `.venv` environment and installs the dependencies from `requirements.txt`.
+## Local data layout
 
-## Use outside the container
+```text
+data/
+├── raw/                         # ignored local competition inputs
+│   ├── train.csv
+│   ├── valid.csv
+│   ├── test.csv
+│   └── sample_submission.csv
+└── ...                           # legacy local artifacts
+notebooks/legacy/                 # copied notebook reference implementation
+artifacts/preprocessing/          # ignored generated runs
+```
+
+`data/raw/` and generated artifacts are intentionally ignored. Do not commit competition data or generated matrices.
+
+## Environment
+
+The devcontainer installs the dependencies from `requirements.txt`. Outside the container:
 
 ```bash
 python3 -m venv .venv
@@ -22,42 +41,32 @@ python3 -m venv .venv
 .venv/bin/python -m pip install -r requirements.txt
 ```
 
-Activate the environment when you want to run commands directly:
+Run tests with:
 
 ```bash
-source .venv/bin/activate
+python -m pytest
 ```
 
-From then on you can run the code as you desire.
+## Code quality
 
-## Configure paths
-
-The scripts load `.env` from the repository root automatically. `.env` contains the local defaults and is ignored by Git; use [.env.example](.env.example) as the template when changing paths. Relative paths are resolved from the repository root, and explicit CLI options override `.env` values.
-
-The environment variables define the YAML config path, data directory, four input filenames, model and evaluation output directories, and generated filename templates. See [configuration.md](docs/configuration.md) for the complete list.
-
-## Update dependencies
-
-Edit `requirements.txt` when adding or updating a dependency, then run:
+The repository enforces Python 3.12, 88-character lines, LF endings, four-space indentation, Ruff formatting/linting, and Pyright standard type checking. Run the same checks locally before opening a pull request:
 
 ```bash
-.venv/bin/python -m pip install --upgrade -r requirements.txt
+ruff format --check src tests
+ruff check src tests
+pyright
+python -m pytest
 ```
 
-Then, in VS Code, use `Dev Containers: Rebuild Container` to recreate the container environment from scratch.
-
-To record the locally installed versions:
-
-```bash
-.venv/bin/python -m pip freeze > requirements-lock.txt
-```
-
-The lock file is optional; keep `requirements.txt` as the direct dependency list for the project.
+Apply safe formatting and lint fixes with `ruff format src tests` and `ruff check --fix src tests`. `.editorconfig` defines editor behavior; `.gitattributes` normalizes Git text files and treats notebooks/artifacts as binary.
 
 ## Guides
 
-- [Training](docs/trainning.md)
-- [Evaluation](docs/evaluate.md)
-- [Hyperparameter tuning](docs/tune.md)
+- [Complete current pipeline](docs/pipeline.md)
+- [Testing](docs/testing.md)
+- [Preprocessing and artifacts](docs/preprocessing.md)
+- [Legacy training](docs/trainning.md)
+- [Legacy evaluation](docs/evaluate.md)
+- [Legacy tuning](docs/tune.md)
 - [Model configuration](config/models.yaml)
 - [Environment configuration](docs/configuration.md)
