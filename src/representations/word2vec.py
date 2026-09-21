@@ -62,6 +62,31 @@ def _tokenize_documents(texts: Iterable[str]) -> list[list[str]]:
     return [tokenize(text) for text in texts]
 
 
+def fit_word2vec(train_texts: Iterable[str], config: Word2VecConfig) -> Word2Vec:
+    """Fit a Word2Vec model on train text only."""
+    train_documents = _tokenize_documents(train_texts)
+    if not any(train_documents):
+        raise ValueError("Word2Vec requires at least one token in train text")
+
+    return Word2Vec(
+        sentences=train_documents,
+        vector_size=config.vector_size,
+        window=config.window,
+        min_count=config.min_count,
+        sg=config.sg,
+        epochs=config.epochs,
+        workers=config.workers,
+        seed=config.seed,
+    )
+
+
+def document_vectors(
+    model: Word2Vec, texts: Iterable[str], vector_size: int
+) -> tuple[np.ndarray, dict[str, float | int]]:
+    """Mean-pool known model vectors for text documents."""
+    return _document_vectors(model, _tokenize_documents(texts), vector_size)
+
+
 def _document_vectors(
     model: Word2Vec,
     documents: Sequence[Sequence[str]],
@@ -100,25 +125,10 @@ def build_word2vec(
 ) -> Representation:
     """Fit Word2Vec on train text and mean-pool all three document splits."""
     config = config or Word2VecConfig(architecture=architecture)
-    train_documents = _tokenize_documents(train_texts)
-    valid_documents = _tokenize_documents(valid_texts)
-    test_documents = _tokenize_documents(test_texts)
-    if not any(train_documents):
-        raise ValueError("Word2Vec requires at least one token in train text")
-
-    model = Word2Vec(
-        sentences=train_documents,
-        vector_size=config.vector_size,
-        window=config.window,
-        min_count=config.min_count,
-        sg=config.sg,
-        epochs=config.epochs,
-        workers=config.workers,
-        seed=config.seed,
-    )
-    train, train_stats = _document_vectors(model, train_documents, config.vector_size)
-    valid, valid_stats = _document_vectors(model, valid_documents, config.vector_size)
-    test, test_stats = _document_vectors(model, test_documents, config.vector_size)
+    model = fit_word2vec(train_texts, config)
+    train, train_stats = document_vectors(model, train_texts, config.vector_size)
+    valid, valid_stats = document_vectors(model, valid_texts, config.vector_size)
+    test, test_stats = document_vectors(model, test_texts, config.vector_size)
     metadata: dict[str, Any] = {
         "representation": "word2vec",
         "architecture": config.architecture,

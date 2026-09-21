@@ -7,6 +7,7 @@ import pandas as pd
 
 from ._common import Representation
 from .bow import build_bow
+from .essay_prompt import build_essay_prompt
 from .structural import build_structural
 from .tf import build_tf
 from .tfidf import build_tfidf
@@ -28,14 +29,16 @@ def build_representation(
     word2vec_config: Word2VecConfig | None = None,
 ) -> Representation:
     """Build a named representation for text iterables or cleaned datasets."""
-    if name == "structural":
+    if name in {"structural", "essay_prompt"}:
         datasets = (train_texts, valid_texts, test_texts)
         if not all(isinstance(dataset, pd.DataFrame) for dataset in datasets):
-            raise TypeError("structural representation requires cleaned DataFrames")
-        return build_structural(
-            cast(pd.DataFrame, train_texts),
-            cast(pd.DataFrame, valid_texts),
-            cast(pd.DataFrame, test_texts),
+            raise TypeError(f"{name} representation requires cleaned DataFrames")
+        typed_datasets = tuple(cast(pd.DataFrame, dataset) for dataset in datasets)
+        if name == "structural":
+            return build_structural(*typed_datasets)
+        return build_essay_prompt(
+            *typed_datasets,
+            word2vec_config=word2vec_config,
         )
     if name == "word2vec":
         return build_word2vec(
