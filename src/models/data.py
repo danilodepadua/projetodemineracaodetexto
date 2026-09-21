@@ -40,3 +40,20 @@ def validate_run(run_dir: Path, representation: str) -> None:
         raise ValueError(
             f"Representation {representation!r} is not available in {run_dir}"
         )
+
+
+def resolve_run_dir(
+    run_dir: str | Path, runs_dir: Path = Path("artifacts/preprocessing")
+) -> Path:
+    """Resolve an explicit run directory or the newest timestamped run."""
+    if str(run_dir) != "latest":
+        return Path(run_dir)
+
+    candidates = [
+        path
+        for path in runs_dir.glob("run-*")
+        if path.is_dir() and (path / "manifest.json").is_file()
+    ]
+    if not candidates:
+        raise FileNotFoundError(f"No preprocessing runs found in: {runs_dir}")
+    return max(candidates, key=lambda path: path.name)

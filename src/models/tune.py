@@ -9,7 +9,7 @@ import numpy as np
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 
 from .config import DEFAULT_CONFIG_PATH, create_model, get_model_config, load_config
-from .data import load_split, validate_run
+from .data import load_split, resolve_run_dir, validate_run
 
 
 def evaluate(y_true, y_pred) -> dict[str, float]:
@@ -42,7 +42,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Tune models from a preprocessing run."
     )
-    parser.add_argument("--run-dir", type=Path, required=True)
+    parser.add_argument(
+        "--run-dir", required=True, help="Preprocessing run directory or latest."
+    )
     parser.add_argument("--representation", default="tfidf")
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG_PATH)
     parser.add_argument(
@@ -51,9 +53,10 @@ def main() -> None:
     args = parser.parse_args()
     config = load_config(args.config)
     targets = config["targets"]
-    validate_run(args.run_dir, args.representation)
-    train_df, X_train = load_split(args.run_dir, "train", args.representation, targets)
-    valid_df, X_valid = load_split(args.run_dir, "valid", args.representation, targets)
+    run_dir = resolve_run_dir(args.run_dir)
+    validate_run(run_dir, args.representation)
+    train_df, X_train = load_split(run_dir, "train", args.representation, targets)
+    valid_df, X_valid = load_split(run_dir, "valid", args.representation, targets)
     results = {
         name: tune_model(
             name,

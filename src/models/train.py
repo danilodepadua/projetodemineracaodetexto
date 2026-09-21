@@ -6,7 +6,7 @@ from pathlib import Path
 import joblib
 
 from .config import DEFAULT_CONFIG_PATH, create_model, get_model_config, load_config
-from .data import load_split, validate_run
+from .data import load_split, resolve_run_dir, validate_run
 
 
 def train_models(
@@ -32,9 +32,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--run-dir",
-        type=Path,
         required=True,
-        help="Timestamped preprocessing run directory.",
+        help="Preprocessing run directory or latest.",
     )
     parser.add_argument(
         "--representation",
@@ -52,8 +51,9 @@ def main() -> None:
     config = load_config(args.config)
     model_config = get_model_config(config, args.model)
     targets = config["targets"]
-    validate_run(args.run_dir, args.representation)
-    train_df, X_train = load_split(args.run_dir, "train", args.representation, targets)
+    run_dir = resolve_run_dir(args.run_dir)
+    validate_run(run_dir, args.representation)
+    train_df, X_train = load_split(run_dir, "train", args.representation, targets)
     train_models(
         train_df, X_train, args.model, args.output_dir, targets, model_config["params"]
     )
