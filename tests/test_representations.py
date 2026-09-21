@@ -68,3 +68,16 @@ def test_representation_contract_and_serialization(tmp_path):
     assert tfidf.vectorizer.idf_ is not None
     assert "validationonly" not in tfidf.vectorizer.vocabulary_
     assert "testonly" not in tfidf.vectorizer.vocabulary_
+
+    word2vec = build_representation(
+        "word2vec",
+        TRAIN,
+        VALID,
+        TEST,
+        word2vec_architecture="skipgram",
+    )
+    assert word2vec.train.shape == (len(TRAIN), 100)
+    assert word2vec.valid.shape == (len(VALID), 100)
+    assert word2vec.test.shape == (len(TEST), 100)
+    assert not sparse.issparse(word2vec.train)
+    assert word2vec.vectorizer.sg == 1
