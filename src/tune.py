@@ -19,7 +19,12 @@ if __package__:
     )
     from .settings import SETTINGS
 else:
-    from model_config import DEFAULT_CONFIG_PATH, create_model, get_model_config, load_config
+    from model_config import (
+        DEFAULT_CONFIG_PATH,
+        create_model,
+        get_model_config,
+        load_config,
+    )
     from settings import SETTINGS
 
 
@@ -32,7 +37,6 @@ def load_data(data_dir: Path, targets: list[str]):
     }
 
     for file_description, path in data_paths.items():
-
         if not path.exists():
             raise FileNotFoundError(
                 f"Required {file_description} file not found: {path}"
@@ -111,7 +115,7 @@ def parameter_combinations(model_config: dict):
     parameter_values = [tuning[name] for name in parameter_names]
 
     for values in product(*parameter_values):
-        yield dict(zip(parameter_names, values))
+        yield dict(zip(parameter_names, values, strict=True))
 
 
 def tune_model(
@@ -148,10 +152,12 @@ def tune_model(
                 predictions,
             )
 
-            results[target].append({
-                **tuned_params,
-                **metrics,
-            })
+            results[target].append(
+                {
+                    **tuned_params,
+                    **metrics,
+                }
+            )
 
     return results
 
@@ -173,9 +179,7 @@ def print_best(model_name: str, results: dict):
 
     for target, result in results.items():
         parameters = {
-            key: value
-            for key, value in result.items()
-            if key not in {"rmse", "mae"}
+            key: value for key, value in result.items() if key not in {"rmse", "mae"}
         }
         parameter_text = " ".join(
             f"{name}={value}" for name, value in parameters.items()
@@ -203,7 +207,10 @@ def main():
         "--data-dir",
         type=Path,
         default=SETTINGS.data_dir,
-        help="Directory containing training and validation data (default: DATA_DIR from .env).",
+        help=(
+            "Directory containing training and validation data "
+            "(default: DATA_DIR from .env)."
+        ),
     )
 
     parser.add_argument(

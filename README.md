@@ -47,6 +47,19 @@ Run tests with:
 python -m pytest
 ```
 
+## Code quality
+
+The repository enforces Python 3.12, 88-character lines, LF endings, four-space indentation, Ruff formatting/linting, and Pyright standard type checking. Run the same checks locally before opening a pull request:
+
+```bash
+ruff format --check src tests
+ruff check src tests
+pyright
+python -m pytest
+```
+
+Apply safe formatting and lint fixes with `ruff format src tests` and `ruff check --fix src tests`. `.editorconfig` defines editor behavior; `.gitattributes` normalizes Git text files and treats notebooks/artifacts as binary.
+
 ## Guides
 
 - [Preprocessing and artifacts](docs/preprocessing.md)

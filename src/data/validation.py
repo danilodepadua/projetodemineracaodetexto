@@ -4,6 +4,7 @@ from hashlib import sha256
 from itertools import combinations
 from pathlib import Path
 import re
+
 import unicodedata
 
 import pandas as pd
@@ -81,7 +82,9 @@ def _validate_scores(
         return
 
     for target in TARGET_COLUMNS:
-        scores = pd.to_numeric(dataset[target], errors="coerce")
+        scores: pd.Series = pd.Series(
+            pd.to_numeric(dataset[target], errors="coerce")
+        )
         invalid_scores = ~scores.isin([1, 2, 3, 4, 5])
         if invalid_scores.any():
             problems.append(

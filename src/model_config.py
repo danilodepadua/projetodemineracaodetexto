@@ -34,8 +34,10 @@ def load_config(config_path: Path = DEFAULT_CONFIG_PATH) -> dict[str, Any]:
     targets = config.get("targets")
     models = config.get("models")
 
-    if not isinstance(targets, list) or not targets or not all(
-        isinstance(target, str) and target for target in targets
+    if (
+        not isinstance(targets, list)
+        or not targets
+        or not all(isinstance(target, str) and target for target in targets)
     ):
         raise ValueError("Model configuration must define a non-empty targets list")
 
@@ -52,9 +54,7 @@ def load_config(config_path: Path = DEFAULT_CONFIG_PATH) -> dict[str, Any]:
         params = model_config.get("params")
 
         if not isinstance(params, dict) or not params:
-            raise ValueError(
-                f"Parameters for {model_name} must be a non-empty mapping"
-            )
+            raise ValueError(f"Parameters for {model_name} must be a non-empty mapping")
 
         for parameter_name, parameter in params.items():
             if isinstance(parameter, dict):

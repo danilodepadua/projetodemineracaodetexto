@@ -16,7 +16,12 @@ if __package__:
     )
     from .settings import SETTINGS
 else:
-    from model_config import DEFAULT_CONFIG_PATH, create_model, get_model_config, load_config
+    from model_config import (
+        DEFAULT_CONFIG_PATH,
+        create_model,
+        get_model_config,
+        load_config,
+    )
     from settings import SETTINGS
 
 
@@ -42,15 +47,10 @@ def load_training_data(data_dir: Path, targets: list[str]):
             f"{len(train_df)} != {X_train.shape[0]}"
         )
 
-    missing_targets = [
-        target for target in targets
-        if target not in train_df.columns
-    ]
+    missing_targets = [target for target in targets if target not in train_df.columns]
 
     if missing_targets:
-        raise ValueError(
-            f"Missing target columns: {missing_targets}"
-        )
+        raise ValueError(f"Missing target columns: {missing_targets}")
 
     return train_df, X_train
 
@@ -86,9 +86,7 @@ def train_models(
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(
-        description="Train text-mining regression models."
-    )
+    parser = argparse.ArgumentParser(description="Train text-mining regression models.")
 
     parser.add_argument(
         "--config",
@@ -114,7 +112,9 @@ def parse_args():
         "--output-dir",
         type=Path,
         default=SETTINGS.models_dir,
-        help="Directory where trained models are stored (default: MODELS_DIR from .env).",
+        help=(
+            "Directory where trained models are stored (default: MODELS_DIR from .env)."
+        ),
     )
 
     return parser.parse_args()
@@ -130,10 +130,7 @@ def main():
 
     train_df, X_train = load_training_data(args.data_dir, targets)
 
-    print(
-        f"Loaded {X_train.shape[0]} samples "
-        f"with {X_train.shape[1]} TF-IDF features."
-    )
+    print(f"Loaded {X_train.shape[0]} samples with {X_train.shape[1]} TF-IDF features.")
 
     train_models(
         train_df=train_df,
