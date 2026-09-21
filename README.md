@@ -62,6 +62,7 @@ Apply safe formatting and lint fixes with `ruff format src tests` and `ruff chec
 
 ## Guides
 
+- [Complete current pipeline](docs/pipeline.md)
 - [Preprocessing and artifacts](docs/preprocessing.md)
 - [Legacy training](docs/trainning.md)
 - [Legacy evaluation](docs/evaluate.md)
