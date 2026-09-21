@@ -13,7 +13,7 @@ python -m src.preprocessing \
   --representation all
 ```
 
-The command validates the supplied competition files, cleans every split independently, fits each representation on training essays only, and writes a timestamped artifact run. See [preprocessing](docs/preprocessing.md) for inputs, outputs, validation, and reproducibility details.
+The command validates the supplied competition files, cleans every split independently, fits each representation on training essays only, and writes a timestamped artifact run. Select one representation with `--representation bow`, `--representation tf`, or `--representation tfidf`; `all` builds all three after cleaning once. See [preprocessing](docs/preprocessing.md) for representation semantics, artifacts, validation, and reproducibility details.
 
 ## Local data layout
 
