@@ -14,7 +14,7 @@ python -m pip install -r requirements.txt
 python -m pytest
 ```
 
-The suite contains unit tests for cleaning, validation, train-only vectorizer fitting, serialization, and end-to-end artifact generation.
+The suite contains unit tests for cleaning, validation, train-only representation fitting, Word2Vec tokenization/training/pooling/reproducibility, serialization, and end-to-end artifact generation.
 
 ## Run focused tests
 
@@ -22,11 +22,12 @@ The suite contains unit tests for cleaning, validation, train-only vectorizer fi
 python -m pytest tests/test_preprocessing.py
 python -m pytest tests/test_validation.py
 python -m pytest tests/test_pipeline.py
+python -m pytest tests/test_word2vec.py
 ```
 
 ## Run notebook-regression checks
 
-The legacy comparison test verifies cleaned text, marker counts, TF-IDF vocabulary, matrix shapes, sparsity, and values against the copied reference inputs and existing legacy artifacts.
+The legacy comparison test verifies cleaned text, marker counts, TF-IDF vocabulary, matrix shapes, sparsity, and values against the copied reference inputs and existing legacy artifacts. Word2Vec tests use small controlled corpora to verify train-only vocabulary, CBOW/Skip-Gram mapping, mean pooling, OOV zero vectors, native model/NumPy serialization, and deterministic workers=1 runs.
 
 ```bash
 python -m pytest tests/test_legacy_regression.py
@@ -52,6 +53,7 @@ A warning about loading the legacy vectorizer with a newer scikit-learn version 
 ## Run quality checks
 
 ```bash
+python -m pip check
 ruff format --check src tests
 ruff check src tests
 pyright

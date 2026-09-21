@@ -13,7 +13,11 @@ python -m src.preprocessing \
   --representation all
 ```
 
-The command validates the supplied competition files, cleans every split independently, fits each representation on training essays only, and writes a timestamped artifact run. Select one representation with `--representation bow`, `--representation tf`, or `--representation tfidf`; `all` builds all three after cleaning once. See [preprocessing](docs/preprocessing.md) for representation semantics, artifacts, validation, and reproducibility details.
+The command validates the supplied competition files, cleans every split independently, fits each representation on training essays only, and writes a timestamped artifact run. Select `--representation bow`, `--representation tf`, `--representation tfidf`, or `--representation word2vec`; choose Word2Vec's architecture with `--word2vec-architecture cbow` or `--word2vec-architecture skipgram`. `all` keeps the lightweight frequency representations (BoW, TF, and TF-IDF) and excludes Word2Vec. See [preprocessing](docs/preprocessing.md) for representation semantics, artifacts, validation, and reproducibility details.
+
+## Representation layers
+
+BoW, TF, and TF-IDF are frequency-based lexical representations. Word2Vec is a dense distributed semantic representation trained with Gensim. It learns word vectors from training essays only and mean-pools known word vectors into one fixed-size vector per essay. Unknown tokens are ignored; an essay with no known tokens receives a zero vector.
 
 ## Local data layout
 
