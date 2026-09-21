@@ -1,6 +1,6 @@
 # Text Mining
 
-Reproducible preprocessing for the essay-scoring competition. PR0 migrates the legacy notebooks into Python modules; model training and submission workflows remain separate legacy tooling.
+Reproducible preprocessing for the essay-scoring competition.
 
 ## Quick start
 
