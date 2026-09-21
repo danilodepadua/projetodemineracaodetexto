@@ -72,12 +72,22 @@ def _write_representation(
         if _matrix_shape(sparse.load_npz(path)) != _matrix_shape(matrix):
             raise AssertionError(f"Serialized {name} {split} matrix shape changed")
 
-    joblib.dump(built.vectorizer, representation_dir / "vectorizer.joblib")
+    vectorizer_path = representation_dir / "vectorizer.joblib"
+    joblib.dump(built.vectorizer, vectorizer_path)
+    shapes = {split: list(_matrix_shape(matrix)) for split, matrix in matrices.items()}
+    parameters = built.vectorizer.get_params()
     return {
-        "parameters": built.vectorizer.get_params(),
+        "name": name,
+        "vectorizer_type": type(built.vectorizer).__name__,
+        "configuration": parameters,
+        "parameters": parameters,
+        "vocabulary_size": _matrix_shape(built.train)[1],
         "feature_count": _matrix_shape(built.train)[1],
-        "shapes": {
-            split: list(_matrix_shape(matrix)) for split, matrix in matrices.items()
+        "shapes": shapes,
+        "matrix_shapes": shapes,
+        "artifact_paths": {
+            **{f"X_{split}": str(Path(name) / f"X_{split}.npz") for split in matrices},
+            "vectorizer": str(Path(name) / "vectorizer.joblib"),
         },
     }
 
@@ -97,7 +107,7 @@ def run(data_dir: Path, output_dir: Path, representation: str = "all") -> Path:
     _write_reports(reports_dir, datasets, diagnostics, duplicates)
 
     representation_names = (
-        ["tf", "tfidf"] if representation == "all" else [representation]
+        ["bow", "tf", "tfidf"] if representation == "all" else [representation]
     )
     representations = {
         name: _write_representation(run_dir, name, cleaned_datasets)
@@ -142,7 +152,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--representation",
-        choices=["tf", "tfidf", "all"],
+        choices=["bow", "tf", "tfidf", "all"],
         default="all",
         help="Representation to build (default: all).",
     )
