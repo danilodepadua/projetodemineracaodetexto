@@ -4,6 +4,8 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import Ridge
 from sklearn.svm import LinearSVR
 
@@ -15,6 +17,8 @@ DEFAULT_CONFIG_PATH = Path("config/models.yaml")
 MODEL_FACTORIES = {
     "ridge": Ridge,
     "linear_svr": LinearSVR,
+    "random_forest":RandomForestRegressor,
+    "decision_tree": DecisionTreeRegressor
 }
 
 

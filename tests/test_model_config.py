@@ -10,7 +10,7 @@ from src.models.tune import tune_model
 def test_model_config_defines_tunable_models_and_parameters():
     config = load_config()
 
-    assert set(config["models"]) == {"ridge", "linear_svr"}
+    assert set(config["models"]) == {"ridge", "linear_svr", "random_forest", "decision_tree"}
     assert config["representations"] == [
         "bow",
         "tf",

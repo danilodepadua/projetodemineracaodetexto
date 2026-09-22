@@ -42,3 +42,36 @@ models:
       verbose: 0
       random_state: 42
       max_iter: 10000
+
+  random_forest:
+    params:
+      n_estimators:
+        default: 300
+        values: [100, 300]
+      max_depth:
+        default: null
+        values: [null, 10, 20]
+      min_samples_leaf:
+        default: 1
+        values: [1, 3]
+      max_features: sqrt
+      n_jobs: -1
+      random_state: 42
+
+  decision_tree:
+    params:
+      max_depth:
+        default: 10
+        values: [5, 10, 20, null]
+      min_samples_leaf:
+        default: 2
+        values: [1, 2, 5]
+      max_features: sqrt
+      random_state: 42
+
+     
+
+    
+
+
+
