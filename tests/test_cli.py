@@ -11,6 +11,7 @@ import pytest
         "src.models.train",
         "src.models.evaluate",
         "src.models.tune",
+        "src.models.submit",
     ],
 )
 def test_module_entrypoint_help(module):
@@ -74,6 +75,7 @@ def test_public_cli_pipeline_connects_with_fixture(tmp_path, monkeypatch):
     from src.models.train import main as train_main
     from src.models.tune import main as tune_main
     from src.preprocessing.pipeline import main as preprocessing_main
+    from src.models.submit import main as submit_main
 
     monkeypatch.setattr(
         validation, "EXPECTED_ROWS", {"train": 2, "valid": 1, "test": 1}
@@ -165,6 +167,27 @@ def test_public_cli_pipeline_connects_with_fixture(tmp_path, monkeypatch):
     )
     evaluate_main()
 
+    submission_file = tmp_path / "submission.csv"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "submit",
+            "--tuning-file",
+            str(tmp_path / "tuning.json"),
+            "--runs-dir",
+            str(preprocessing_dir),
+            "--config",
+            config,
+            "--sample-submission",
+            str(data_dir / "sample_submission.csv"),
+            "--output",
+            str(submission_file),
+        ],
+    )
+    submit_main()
+
     assert (tmp_path / "tuning.json").is_file()
     assert (models_dir / "tfidf" / "ridge" / "metadata.json").is_file()
     assert (evaluation_dir / "tfidf" / "ridge.json").is_file()
+    assert submission_file.is_file()

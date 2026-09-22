@@ -77,6 +77,12 @@ Tune every configured representation that already has a run, then train and eval
 
 Training and evaluation resolve `latest` to the newest run containing the requested representation. Tuning does the same independently for each configured representation; it never starts preprocessing automatically. Model artifacts are isolated by representation.
 
+
+Creating submission file
+```bash
+python -m src.models.submit --output submission.csv
+```
+
 ## Guides
 
 - [Setup](docs/setup.md): system Python, `.venv`, Dev Container, and verification.

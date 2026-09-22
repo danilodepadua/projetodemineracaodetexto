@@ -15,3 +15,6 @@ htmlcov/
 # Ignore model artifacts
 artifacts/
 .empryo
+
+# the csv for the submission
+submission.csv

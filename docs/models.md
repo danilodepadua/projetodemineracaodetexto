@@ -76,6 +76,11 @@ Evaluation resolves the requested representation, loads it through the handoff l
 
 Evaluation fails clearly when the model directory, metadata, target artifact, representation, model name, or source preprocessing run does not match. Retrain against the requested run/representation instead of renaming files or bypassing metadata checks.
 
+## Creating submission file
+```bash
+python -m src.models.submit --output submission.csv
+```
+
 ## `latest` behavior
 
 - Training and evaluation: newest preprocessing run containing the requested representation.
